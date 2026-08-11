@@ -1,0 +1,25 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings 
+httpx
+sentence-transformers
+faiss-cpu==1.13.0
+orjson==3.9.0
+numpy == 1.26.4
+streamlit
+requests
+pytest>=7.0.0
+PyMuPDF
+psycopg2-binary>=2.9.0
+cryptography>=41.0.0
+sqlalchemy>=2.0.0
+PyYAML
+
+# Evaluation harness (dataset preparation, metrics, analysis, plotting)
+datasets>=2.14.0
+scikit-learn>=1.3.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+

@@ -1,0 +1,33 @@
+# ---------------------------------------------------------------------------
+# Reproducible experiment configuration for the thesis evaluation.
+# Every run_experiments.py invocation reads this file and copies it next to
+# the results, so any reported number can be traced back to its exact setup.
+# ---------------------------------------------------------------------------
+
+# Labelled question set. Optional per-question field "category" enables the
+# per-category analysis (out_of_knowledge, underspecified, false_presupposition,
+# out_of_scope, low_confidence); questions without it are grouped as
+# "answerable" / "unlabeled".
+questions: data/eval/educational_questions.jsonl
+
+# Retrieval depth (same for every system).
+top_k: 5
+
+# Reasoning runtime: "mock" (deterministic lexical heuristic, no LLM needed)
+# or "ollama" (uses OLLAMA_MODEL from config.yml, temperature 0).
+reasoning_mode: mock
+
+# Repeated runs for mean / standard deviation reporting. Each run uses one
+# seed; the seed controls question order and any stochastic components.
+seeds: [42, 123, 2024]
+
+# Cap on questions per run (0 = all).
+limit: 0
+
+# Governance policy overrides applied to ALL governed systems (empty = use
+# config.yml values). Kept here so the evaluated policy is pinned in one file.
+governance: {}
+
+# Output locations.
+out_dir: results
+predictions_file: predictions_all.jsonl

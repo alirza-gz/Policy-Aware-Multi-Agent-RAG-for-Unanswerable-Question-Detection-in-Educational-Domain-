@@ -1,0 +1,112 @@
+services:
+  # --- Gateway: routes requests through the three agent services -------------
+  rag_gateway:
+    build: .
+    container_name: rag_gateway
+    restart: always
+    depends_on:
+      retriever_service:
+        condition: service_started
+      reasoning_service:
+        condition: service_started
+      governance_service:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    environment:
+      # Point the gateway at the independent agent microservices.
+      RETRIEVER_URL: http://retriever_service:8011
+      REASONING_URL: http://reasoning_service:8012
+      GOVERNANCE_URL: http://governance_service:8013
+      DATABASE_URL: postgresql://raguser:ragpassword@postgres:5432/ragdb
+      USE_PG_STORAGE: "true"
+    env_file:
+      - .env
+    ports:
+      - "8010:8010"   # FastAPI gateway
+      - "8501:8501"   # Streamlit UI
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: >
+      python ra3g.py --api-port 8010 --ui-port 8501
+
+  # --- Retriever agent (independent service) --------------------------------
+  retriever_service:
+    build: .
+    container_name: retriever_service
+    restart: always
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./app:/app/app
+    ports:
+      - "8011:8011"
+    command: >
+      uvicorn app.services.retriever_service:app --host 0.0.0.0 --port 8011
+
+  # --- Reasoning agent (independent service) --------------------------------
+  reasoning_service:
+    build: .
+    container_name: reasoning_service
+    restart: always
+    depends_on:
+      ollama:
+        condition: service_started
+    environment:
+      OLLAMA_API_URL: http://ollama:11434/api/generate
+      OLLAMA_MODEL: qwen2.5:3b-instruct
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./app:/app/app
+    ports:
+      - "8012:8012"
+    command: >
+      uvicorn app.services.reasoning_service:app --host 0.0.0.0 --port 8012
+
+  # --- Governance agent (independent service) -------------------------------
+  governance_service:
+    build: .
+    container_name: governance_service
+    restart: always
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./app:/app/app
+    ports:
+      - "8013:8013"
+    command: >
+      uvicorn app.services.governance_service:app --host 0.0.0.0 --port 8013
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: rag_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: raguser
+      POSTGRES_PASSWORD: ragpassword
+      POSTGRES_DB: ragdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raguser -d ragdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  ollama_data:
+  postgres_data:

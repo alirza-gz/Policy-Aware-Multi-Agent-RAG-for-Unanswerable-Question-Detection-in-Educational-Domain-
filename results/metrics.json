@@ -1,0 +1,50 @@
+{
+  "baseline": {
+    "n": 200,
+    "n_answerable": 100,
+    "n_unanswerable": 100,
+    "accuracy": 0.5,
+    "precision_unanswerable": 0.0,
+    "recall_unanswerable": 0.0,
+    "f1_unanswerable": 0.0,
+    "false_rejection_rate": 0.0,
+    "abstain_rate": 0.0,
+    "clarify_rate": 0.0,
+    "answer_rate": 1.0,
+    "answered_correct_rate": 0.67,
+    "confusion_matrix": [
+      [
+        100,
+        0
+      ],
+      [
+        100,
+        0
+      ]
+    ]
+  },
+  "policy_aware": {
+    "n": 200,
+    "n_answerable": 100,
+    "n_unanswerable": 100,
+    "accuracy": 0.66,
+    "precision_unanswerable": 0.82,
+    "recall_unanswerable": 0.41,
+    "f1_unanswerable": 0.5467,
+    "false_rejection_rate": 0.09,
+    "abstain_rate": 0.24,
+    "clarify_rate": 0.01,
+    "answer_rate": 0.75,
+    "answered_correct_rate": 0.53,
+    "confusion_matrix": [
+      [
+        91,
+        9
+      ],
+      [
+        59,
+        41
+      ]
+    ]
+  }
+}

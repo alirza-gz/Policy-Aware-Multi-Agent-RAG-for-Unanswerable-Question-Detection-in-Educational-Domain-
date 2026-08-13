@@ -41,6 +41,10 @@ ABSTAIN_MESSAGE = (
     "question, so I will refrain from answering rather than guess."
 )
 
+SERVICE_ERROR_MESSAGE = (
+    "The reasoning service is temporarily unavailable. Please try again shortly."
+)
+
 
 class GovernanceAgent:
     def __init__(
@@ -88,10 +92,15 @@ class GovernanceAgent:
 
     def _check_banned_phrases(self, text: str) -> List[str]:
         matches = []
-        lower = (text or "").lower()
+        source = text or ""
         for p in self.banned_phrases:
-            if p.lower() in lower:
-                matches.append(p)
+            try:
+                pattern = r"\b" + p + r"\b" if " " not in p.strip("()") else p
+                if re.search(pattern, source, flags=re.IGNORECASE):
+                    matches.append(p)
+            except re.error:
+                if p.lower() in source.lower():
+                    matches.append(p)
         return matches
 
     def _get_pii_filters(self) -> Dict[str, bool]:
@@ -188,6 +197,18 @@ class GovernanceAgent:
             confidence = 0.0
 
         reasons: List[str] = []
+
+        # --- 0. Backend/service failure (distinct from a normal abstain) -------
+        if reasoning_result.get("service_error"):
+            reasons.append("reasoning_service_unavailable")
+            logger.info("Governance decision=ABSTAIN reason=%s", reasons)
+            return self._result(
+                ACTION_ABSTAIN,
+                final_answer=SERVICE_ERROR_MESSAGE,
+                redacted_answer=SERVICE_ERROR_MESSAGE,
+                reasons=reasons,
+                clarification_question="",
+            )
 
         # --- 1. Safety policy ---------------------------------------------------
         banned = self._check_banned_phrases(answer)

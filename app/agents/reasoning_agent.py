@@ -24,6 +24,10 @@ REASONING_MODE = os.getenv("REASONING_MODE", getattr(Config, "REASONING_MODE", "
 # the answer. Detecting it lets us map to is_answerable=False deterministically.
 UNANSWERABLE_TOKEN = "UNANSWERABLE"
 
+SERVICE_UNAVAILABLE_MESSAGE = (
+    "The reasoning service is temporarily unavailable. Please try again shortly."
+)
+
 
 class ReasoningAgent:
     def __init__(self, ollama_url: str = OLLAMA_URL, model: str = OLLAMA_MODEL, mode: str = REASONING_MODE):
@@ -83,6 +87,11 @@ class ReasoningAgent:
             "prompt": prompt,
             "temperature": 0.0,
             "stream": True,
+            "options": {
+                "seed": 42,
+                "top_p": 1.0,
+                "top_k": 1,
+            },
         }
 
         last_exception = None
@@ -257,6 +266,9 @@ class ReasoningAgent:
         best_passage = passages[best_idx]
         answer_text = (best_passage.get("text", "") or "").strip()
         answer_text = answer_text[:400]
+        ANSWERABLE_FLOOR = 0.34
+        coverage_ratio = max(0.0, (min(coverage, 1.0) - ANSWERABLE_FLOOR) / (1.0 - ANSWERABLE_FLOOR))
+        confidence = 0.32 + 0.6 * coverage_ratio + 0.08 * retriever_top
         return self._normalize_result(
             {
                 "answer": answer_text,
@@ -265,7 +277,7 @@ class ReasoningAgent:
                 "needs_clarification": False,
                 "clarification_question": "",
                 "trace": [{"index": best_idx, "note": f"lexical overlap={best_overlap}"}],
-                "confidence": round(min(0.4 + coverage / 2 + retriever_top / 4, 1.0), 3),
+                "confidence": round(min(confidence, 1.0), 3),
             },
             passages,
         )
@@ -286,13 +298,14 @@ class ReasoningAgent:
         except Exception as e:
             logger.exception("ReasoningAgent fallback activated: %s", e)
             return {
-                "answer": "",
+                "answer": SERVICE_UNAVAILABLE_MESSAGE,
                 "is_answerable": False,
                 "answerability_confidence": 0.0,
                 "needs_clarification": False,
                 "clarification_question": "",
                 "trace": [],
                 "confidence": 0.0,
+                "service_error": True,
             }
 
     def _load_user_instructions(self) -> str:

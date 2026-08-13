@@ -1,51 +1,31 @@
-# ---------------------------------------------------------------------------
-# Policy-Aware Multi-Agent RAG - configuration
-# ---------------------------------------------------------------------------
-
-# Reasoning agent runtime: "ollama" (real LLM) or "mock" (lexical heuristic,
-# no LLM required - useful for running the evaluation harness on limited HW).
 REASONING_MODE: ollama
-
 OLLAMA_URL: http://localhost:11434/api/generate
 OLLAMA_MODEL: qwen2.5:3b-instruct
 EMBED_MODEL: all-MiniLM-L6-v2
 EMBED_DIM: 384
 CONFIDENCE_THRESHOLD: 0.5
-
 AUTO_BUILD_FAISS: true
 CORPUS_DIR: data/corpus
-
-# Master switch for the governance agent. When false, the pipeline runs as a
-# plain RAG baseline (retriever + reasoner only) for ablation comparison.
 GOVERNANCE_ENABLED: true
-
-# Policy-aware answerability governance (core of the research).
-GOVERNANCE:
-  answerability_enabled: true
-  # Below this retrieval confidence there is no reliable evidence -> ABSTAIN.
-  retriever_abstain_below: 0.2
-  # Below this reasoner confidence the answer is too weak -> ABSTAIN.
-  reasoner_abstain_below: 0.3
-  # Confidence in [low, high) is uncertain -> ask for CLARIFY.
-  clarify_band: [0.3, 0.5]
-
-# Legacy two-way thresholds (kept for evaluate() backward compatibility).
+GOVERNANCE: '{''answerability_enabled'': True, ''retriever_abstain_below'': 0.2, ''reasoner_abstain_below'':
+  0.3, ''clarify_band'': [0.3, 0.5]}'
 THRESHOLDS:
   retriever: 0.2
   reasoner: 0.3
-
-# Safety policy: answers containing these phrases are refused.
 BANNED_PHRASES:
-- diagnosis
-- prescription
-- classified
-- confidential
-
-# PII redaction applied on the ANSWER path.
+- i diagnose you
+- you have been diagnosed
+- i prescribe
+- you should take
+- recommended dosage is
+- top secret classified
+- classified government information
+- reveal confidential
+- share confidential
 PII_FILTERS:
-  email: true
-  phone: true
-  ip: true
   date: true
+  email: true
   id: true
+  ip: true
   name: true
+  phone: true

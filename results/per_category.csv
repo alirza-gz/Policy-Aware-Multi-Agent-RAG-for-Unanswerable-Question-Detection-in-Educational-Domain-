@@ -1,0 +1,17 @@
+system,category,n,detection_rate,expected_action_accuracy,answer,clarify,abstain
+full_system,answerable,300,0.0433,0.9567,287,4,9
+full_system,unlabeled,300,0.4267,0.3733,172,16,112
+no_clarification,answerable,300,0.03,0.97,291,0,9
+no_clarification,unlabeled,300,0.3733,0.3733,188,0,112
+no_governance,answerable,300,0.03,0.97,291,0,9
+no_governance,unlabeled,300,0.3733,0.3733,188,0,112
+no_policy_rules,answerable,300,0.0433,0.9567,287,4,9
+no_policy_rules,unlabeled,300,0.4267,0.3733,172,16,112
+no_retriever_confidence,answerable,300,0.0433,0.9567,287,4,9
+no_retriever_confidence,unlabeled,300,0.4267,0.3733,172,16,112
+policy_aware,answerable,300,0.0433,0.9567,287,4,9
+policy_aware,unlabeled,300,0.4267,0.3733,172,16,112
+single_agent_rag,answerable,300,0.03,0.97,291,0,9
+single_agent_rag,unlabeled,300,0.3733,0.3733,188,0,112
+vanilla_rag,answerable,300,0.0,1.0,300,0,0
+vanilla_rag,unlabeled,300,0.0,0.0,300,0,0

@@ -7,8 +7,11 @@ CONFIDENCE_THRESHOLD: 0.5
 AUTO_BUILD_FAISS: true
 CORPUS_DIR: data/corpus
 GOVERNANCE_ENABLED: true
-GOVERNANCE: '{''answerability_enabled'': True, ''retriever_abstain_below'': 0.2, ''reasoner_abstain_below'':
-  0.3, ''clarify_band'': [0.3, 0.5]}'
+GOVERNANCE:
+  answerability_enabled: true
+  retriever_abstain_below: 0.2
+  reasoner_abstain_below: 0.3
+  clarify_band: [0.3, 0.5]
 THRESHOLDS:
   retriever: 0.2
   reasoner: 0.3

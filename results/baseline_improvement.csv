@@ -1,3 +1,0 @@
-baseline,accuracy,precision,recall,f1,hallucination_rate,abstention_rate,clarification_rate,answer_rate,false_rejection_rate,answered_correct_rate,policy_compliance_rate
-vanilla_rag,110.02,,,,-0.0,,,-36.67,,0.0,57.9
-single_agent_rag,0.0,0.0,0.0,0.0,-0.0,0.0,,0.0,,0.0,0.0

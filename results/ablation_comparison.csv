@@ -1,6 +1,0 @@
-configuration,accuracy,accuracy_delta,precision,precision_delta,recall,recall_delta,f1,f1_delta,hallucination_rate,hallucination_rate_delta,abstention_rate,abstention_rate_delta,clarification_rate,clarification_rate_delta,answer_rate,answer_rate_delta,false_rejection_rate,false_rejection_rate_delta,answered_correct_rate,answered_correct_rate_delta,policy_compliance_rate,policy_compliance_rate_delta
-full_system,0.7,0.0,1.0,0.0,0.55,0.0,0.7097,0.0,0.45,0.0,0.3667,0.0,0.0,0.0,0.6333,0.0,0.0,0.0,1.0,0.0,1.0,0.0
-no_governance,0.7,0.0,1.0,0.0,0.55,0.0,0.7097,0.0,0.45,0.0,0.3667,0.0,0.0,0.0,0.6333,0.0,0.0,0.0,1.0,0.0,1.0,0.0
-no_clarification,0.7,0.0,1.0,0.0,0.55,0.0,0.7097,0.0,0.45,0.0,0.3667,0.0,0.0,0.0,0.6333,0.0,0.0,0.0,1.0,0.0,1.0,0.0
-no_retriever_confidence,0.7,0.0,1.0,0.0,0.55,0.0,0.7097,0.0,0.45,0.0,0.3667,0.0,0.0,0.0,0.6333,0.0,0.0,0.0,1.0,0.0,1.0,0.0
-no_policy_rules,0.7,0.0,1.0,0.0,0.55,0.0,0.7097,0.0,0.45,0.0,0.3667,0.0,0.0,0.0,0.6333,0.0,0.0,0.0,1.0,0.0,1.0,0.0

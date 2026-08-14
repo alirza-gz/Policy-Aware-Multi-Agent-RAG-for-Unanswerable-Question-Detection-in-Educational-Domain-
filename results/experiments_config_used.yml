@@ -8,14 +8,14 @@
 # per-category analysis (out_of_knowledge, underspecified, false_presupposition,
 # out_of_scope, low_confidence); questions without it are grouped as
 # "answerable" / "unlabeled".
-questions: data/eval/educational_questions.jsonl
+questions: data/eval/sciq_questions.jsonl
 
 # Retrieval depth (same for every system).
 top_k: 5
 
 # Reasoning runtime: "mock" (deterministic lexical heuristic, no LLM needed)
 # or "ollama" (uses OLLAMA_MODEL from config.yml, temperature 0).
-reasoning_mode: mock
+reasoning_mode: ollama
 
 # Repeated runs for mean / standard deviation reporting. Each run uses one
 # seed; the seed controls question order and any stochastic components.

@@ -82,6 +82,38 @@ def render_config_tab(fastapi_url: str = "http://localhost:8010"):
                     value=bool(pii_val),
                     key=f"pii_filter_{pii_key}",
                 )
+        elif key == "GOVERNANCE" and isinstance(value, dict):
+            st.markdown("**Governance policy** — answerability thresholds")
+            gov_editable = {}
+            for gk, gv in value.items():
+                if isinstance(gv, bool):
+                    gov_editable[gk] = st.checkbox(f"{key} → {gk}", value=gv, key=f"gov_{gk}")
+                elif isinstance(gv, (list, tuple)):
+                    cols = st.columns(len(gv))
+                    new_vals = []
+                    for i, item in enumerate(gv):
+                        with cols[i]:
+                            new_vals.append(
+                                st.number_input(
+                                    f"{gk}[{i}]", value=float(item),
+                                    min_value=0.0, max_value=1.0, step=0.01,
+                                    key=f"gov_{gk}_{i}",
+                                )
+                            )
+                    gov_editable[gk] = new_vals
+                elif isinstance(gv, (int, float)):
+                    gov_editable[gk] = st.number_input(
+                        f"{key} → {gk}", value=float(gv),
+                        min_value=0.0, max_value=1.0, step=0.01,
+                        key=f"gov_{gk}",
+                    )
+                else:
+                    gov_editable[gk] = st.text_input(f"{key} → {gk}", value=str(gv), key=f"gov_{gk}")
+            editable_config[key] = gov_editable
+
+        elif isinstance(value, dict):
+            st.caption(f"{key}: structured value, not editable from this panel (left unchanged).")
+            editable_config[key] = value
 
         elif isinstance(value, bool):
             editable_config[key] = st.checkbox(key, value=value)

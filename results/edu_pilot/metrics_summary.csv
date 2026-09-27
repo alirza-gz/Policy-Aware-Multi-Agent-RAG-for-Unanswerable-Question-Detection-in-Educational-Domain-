@@ -1,9 +1,0 @@
-system,n_runs,accuracy_mean,accuracy_std,precision_mean,precision_std,recall_mean,recall_std,f1_mean,f1_std,hallucination_rate_mean,hallucination_rate_std,abstention_rate_mean,abstention_rate_std,clarification_rate_mean,clarification_rate_std,answer_rate_mean,answer_rate_std,false_rejection_rate_mean,false_rejection_rate_std,answered_correct_rate_mean,answered_correct_rate_std,policy_compliance_rate_mean,policy_compliance_rate_std
-full_system,1,0.804,0.0,0.972,0.0,0.6933,0.0,0.8093,0.0,0.3067,0.0,0.372,0.0,0.056,0.0,0.572,0.0,0.03,0.0,0.68,0.0,1.0,0.0
-no_clarification,1,0.772,0.0,1.0,0.0,0.62,0.0,0.7654,0.0,0.38,0.0,0.372,0.0,0.0,0.0,0.628,0.0,0.0,0.0,0.69,0.0,0.944,0.0
-no_governance,1,0.772,0.0,1.0,0.0,0.62,0.0,0.7654,0.0,0.38,0.0,0.372,0.0,0.0,0.0,0.628,0.0,0.0,0.0,0.71,0.0,0.944,0.0
-no_policy_rules,1,0.804,0.0,0.972,0.0,0.6933,0.0,0.8093,0.0,0.3067,0.0,0.372,0.0,0.056,0.0,0.572,0.0,0.03,0.0,0.68,0.0,1.0,0.0
-no_retriever_confidence,1,0.804,0.0,0.972,0.0,0.6933,0.0,0.8093,0.0,0.3067,0.0,0.372,0.0,0.056,0.0,0.572,0.0,0.03,0.0,0.68,0.0,1.0,0.0
-policy_aware,1,0.804,0.0,0.972,0.0,0.6933,0.0,0.8093,0.0,0.3067,0.0,0.372,0.0,0.056,0.0,0.572,0.0,0.03,0.0,0.68,0.0,1.0,0.0
-single_agent_rag,1,0.772,0.0,1.0,0.0,0.62,0.0,0.7654,0.0,0.38,0.0,0.372,0.0,0.0,0.0,0.628,0.0,0.0,0.0,0.71,0.0,0.944,0.0
-vanilla_rag,1,0.4,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.38,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.71,0.0,0.572,0.0

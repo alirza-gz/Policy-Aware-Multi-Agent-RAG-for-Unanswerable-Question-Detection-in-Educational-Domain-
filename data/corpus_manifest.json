@@ -1,0 +1,202 @@
+[
+  {
+    "doc_id": "ds_pipeline_notes",
+    "course": "data_science",
+    "source_type": "lecture_notes",
+    "title": "Data Science Pipeline Stages",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/data_science_01_pipeline_notes.md",
+    "version_date": "2026-03-26",
+    "filename": "data_science_01_pipeline_notes.md"
+  },
+  {
+    "doc_id": "ds_data_types_textbook",
+    "course": "data_science",
+    "source_type": "textbook",
+    "title": "Variables, Tidy Data, and Reproducibility",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/data_science_02_data_types_textbook.md",
+    "version_date": "2026-03-26",
+    "filename": "data_science_02_data_types_textbook.md"
+  },
+  {
+    "doc_id": "ds_eda_slides",
+    "course": "data_science",
+    "source_type": "slides",
+    "title": "Exploratory Data Analysis Essentials",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/data_science_03_eda_slides.md",
+    "version_date": "2026-03-26",
+    "filename": "data_science_03_eda_slides.md"
+  },
+  {
+    "doc_id": "ds_ethics_article",
+    "course": "data_science",
+    "source_type": "article",
+    "title": "Ethics and Governance in Educational Data Science",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/data_science_04_ethics_article.md",
+    "version_date": "2026-03-26",
+    "filename": "data_science_04_ethics_article.md"
+  },
+  {
+    "doc_id": "stat_descriptive_notes",
+    "course": "statistics",
+    "source_type": "lecture_notes",
+    "title": "Descriptive Statistics",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/statistics_01_descriptive_notes.md",
+    "version_date": "2026-03-26",
+    "filename": "statistics_01_descriptive_notes.md"
+  },
+  {
+    "doc_id": "stat_inferential_textbook",
+    "course": "statistics",
+    "source_type": "textbook",
+    "title": "Inferential Statistics and Sampling",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/statistics_02_inferential_textbook.md",
+    "version_date": "2026-03-26",
+    "filename": "statistics_02_inferential_textbook.md"
+  },
+  {
+    "doc_id": "stat_hypothesis_slides",
+    "course": "statistics",
+    "source_type": "slides",
+    "title": "Hypothesis Testing",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/statistics_03_hypothesis_slides.md",
+    "version_date": "2026-03-26",
+    "filename": "statistics_03_hypothesis_slides.md"
+  },
+  {
+    "doc_id": "stat_regression_oer",
+    "course": "statistics",
+    "source_type": "oer",
+    "title": "Linear Regression Basics",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/statistics_04_regression_oer.md",
+    "version_date": "2026-03-26",
+    "filename": "statistics_04_regression_oer.md"
+  },
+  {
+    "doc_id": "ml_supervised_notes",
+    "course": "machine_learning",
+    "source_type": "lecture_notes",
+    "title": "Supervised Learning Foundations",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/machine_learning_01_supervised_notes.md",
+    "version_date": "2026-03-26",
+    "filename": "machine_learning_01_supervised_notes.md"
+  },
+  {
+    "doc_id": "ml_unsupervised_textbook",
+    "course": "machine_learning",
+    "source_type": "textbook",
+    "title": "Unsupervised Learning",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/machine_learning_02_unsupervised_textbook.md",
+    "version_date": "2026-03-26",
+    "filename": "machine_learning_02_unsupervised_textbook.md"
+  },
+  {
+    "doc_id": "ml_evaluation_slides",
+    "course": "machine_learning",
+    "source_type": "slides",
+    "title": "Model Evaluation Metrics",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/machine_learning_03_evaluation_slides.md",
+    "version_date": "2026-03-26",
+    "filename": "machine_learning_03_evaluation_slides.md"
+  },
+  {
+    "doc_id": "ml_overfitting_article",
+    "course": "machine_learning",
+    "source_type": "article",
+    "title": "Overfitting, Regularization, and Leakage",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/machine_learning_04_overfitting_article.md",
+    "version_date": "2026-03-26",
+    "filename": "machine_learning_04_overfitting_article.md"
+  },
+  {
+    "doc_id": "dm_intro_notes",
+    "course": "data_mining",
+    "source_type": "lecture_notes",
+    "title": "Introduction to Data Mining and KDD",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/data_mining_01_intro_notes.md",
+    "version_date": "2026-03-26",
+    "filename": "data_mining_01_intro_notes.md"
+  },
+  {
+    "doc_id": "dm_association_textbook",
+    "course": "data_mining",
+    "source_type": "textbook",
+    "title": "Association Rule Mining",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/data_mining_02_association_textbook.md",
+    "version_date": "2026-03-26",
+    "filename": "data_mining_02_association_textbook.md"
+  },
+  {
+    "doc_id": "dm_clustering_slides",
+    "course": "data_mining",
+    "source_type": "slides",
+    "title": "Clustering Methods in Data Mining",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/data_mining_03_clustering_slides.md",
+    "version_date": "2026-03-26",
+    "filename": "data_mining_03_clustering_slides.md"
+  },
+  {
+    "doc_id": "dm_process_article",
+    "course": "data_mining",
+    "source_type": "article",
+    "title": "CRISP-DM Process Model",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/data_mining_04_process_article.md",
+    "version_date": "2026-03-26",
+    "filename": "data_mining_04_process_article.md"
+  },
+  {
+    "doc_id": "prob_basics_notes",
+    "course": "probability",
+    "source_type": "lecture_notes",
+    "title": "Probability Basics",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/probability_01_basics_notes.md",
+    "version_date": "2026-03-26",
+    "filename": "probability_01_basics_notes.md"
+  },
+  {
+    "doc_id": "prob_distributions_textbook",
+    "course": "probability",
+    "source_type": "textbook",
+    "title": "Random Variables and Distributions",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/probability_02_distributions_textbook.md",
+    "version_date": "2026-03-26",
+    "filename": "probability_02_distributions_textbook.md"
+  },
+  {
+    "doc_id": "prob_bayes_slides",
+    "course": "probability",
+    "source_type": "slides",
+    "title": "Conditional Probability and Bayes Theorem",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/probability_03_bayes_slides.md",
+    "version_date": "2026-03-26",
+    "filename": "probability_03_bayes_slides.md"
+  },
+  {
+    "doc_id": "prob_conditional_oer",
+    "course": "probability",
+    "source_type": "oer",
+    "title": "Joint Probability and Simulation",
+    "license": "CC0-1.0",
+    "url": "local://corpus_edu_ds/probability_04_conditional_oer.md",
+    "version_date": "2026-03-26",
+    "filename": "probability_04_conditional_oer.md"
+  }
+]

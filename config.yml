@@ -5,7 +5,8 @@ EMBED_MODEL: all-MiniLM-L6-v2
 EMBED_DIM: 384
 CONFIDENCE_THRESHOLD: 0.5
 AUTO_BUILD_FAISS: true
-CORPUS_DIR: data/corpus
+# Educational DS track (pilot/full). Legacy smoke corpus remains in data/corpus/.
+CORPUS_DIR: data/corpus_edu_ds
 GOVERNANCE_ENABLED: true
 GOVERNANCE:
   answerability_enabled: true

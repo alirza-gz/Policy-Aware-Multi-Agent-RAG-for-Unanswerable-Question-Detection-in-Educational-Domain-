@@ -1,0 +1,6 @@
+{
+  "n_answerable": 100,
+  "hit_at_k": 100,
+  "hit_rate": 1.0,
+  "misses": []
+}

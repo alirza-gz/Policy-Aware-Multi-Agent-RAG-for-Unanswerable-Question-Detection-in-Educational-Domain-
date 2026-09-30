@@ -91,6 +91,9 @@ class GovernanceAgent:
         )
 
     def _check_banned_phrases(self, text: str) -> List[str]:
+        """Word-boundary-aware match so e.g. banned phrase 'kill' does not
+        false-positive inside 'skill'. Falls back to a plain substring check
+        if a phrase is not a valid regex fragment."""
         matches = []
         source = text or ""
         for p in self.banned_phrases:
@@ -182,17 +185,31 @@ class GovernanceAgent:
         """Core policy-aware decision: return ANSWER, CLARIFY, or ABSTAIN.
 
         Precedence:
+          0. Backend/service failure -> ABSTAIN (distinct reason from a normal abstain).
           1. Safety policy (banned phrases) -> ABSTAIN (blocked).
-          2. Answerability (no evidence / low retrieval / low reasoner conf) -> ABSTAIN.
-          3. Ambiguity or mid-band confidence -> CLARIFY.
-          4. Otherwise -> ANSWER (with PII redaction).
+          2. Model explicitly requested clarification -> CLARIFY. Checked BEFORE
+             the answerability gate so a compound/multi-part question the model
+             could only partly answer routes to CLARIFY instead of being forced
+             into ABSTAIN just because it could not fully answer every part.
+          3. Answerability (no evidence / low retrieval / low reasoner conf) -> ABSTAIN.
+          4. Mid-band confidence -> CLARIFY.
+          5. Otherwise -> ANSWER (with PII redaction).
         """
         answer = str(reasoning_result.get("answer", "") or "")
         is_answerable = bool(reasoning_result.get("is_answerable", bool(answer.strip())))
         needs_clarification = bool(reasoning_result.get("needs_clarification", False))
         clarification_question = str(reasoning_result.get("clarification_question", "") or "").strip()
+        # Prefer answerability_confidence (explicitly "how sure the passages
+        # support an answer") over confidence ("confidence in the answer
+        # itself"), since it's the former that this policy's thresholds are
+        # meant to act on. Falls back to confidence for older/legacy rows
+        # that don't carry the field.
         try:
-            confidence = float(reasoning_result.get("confidence", 0.0))
+            confidence = float(
+                reasoning_result.get(
+                    "answerability_confidence", reasoning_result.get("confidence", 0.0)
+                )
+            )
         except (TypeError, ValueError):
             confidence = 0.0
 
@@ -223,8 +240,24 @@ class GovernanceAgent:
                 clarification_question="",
             )
 
-        # --- 2. Answerability policy -------------------------------------------
         if self.answerability_enabled:
+            # --- 2. Model-requested clarification (checked before answerability) -
+            if needs_clarification:
+                reasons.append("model_requested_clarification")
+                if not clarification_question:
+                    clarification_question = (
+                        "Could you please clarify or add more detail to your question?"
+                    )
+                logger.info("Governance decision=CLARIFY reason=%s", reasons)
+                return self._result(
+                    ACTION_CLARIFY,
+                    final_answer=clarification_question,
+                    redacted_answer=clarification_question,
+                    reasons=reasons,
+                    clarification_question=clarification_question,
+                )
+
+            # --- 3. Answerability policy ----------------------------------------
             if not is_answerable:
                 reasons.append("unanswerable_no_supporting_evidence")
             if (
@@ -249,16 +282,13 @@ class GovernanceAgent:
                     clarification_question="",
                 )
 
-            # --- 3. Clarification policy ---------------------------------------
+            # --- 4. Confidence-band clarification --------------------------------
             in_clarify_band = self.clarify_low <= confidence < self.clarify_high
-            if needs_clarification or in_clarify_band:
-                if needs_clarification:
-                    reasons.append("model_requested_clarification")
-                if in_clarify_band:
-                    reasons.append(
-                        f"confidence_in_clarify_band ({confidence:.2f} in "
-                        f"[{self.clarify_low}, {self.clarify_high}))"
-                    )
+            if in_clarify_band:
+                reasons.append(
+                    f"confidence_in_clarify_band ({confidence:.2f} in "
+                    f"[{self.clarify_low}, {self.clarify_high}))"
+                )
                 if not clarification_question:
                     clarification_question = (
                         "Could you please clarify or add more detail to your question?"
@@ -272,7 +302,7 @@ class GovernanceAgent:
                     clarification_question=clarification_question,
                 )
 
-        # --- 4. Answer path (with PII redaction) --------------------------------
+        # --- 5. Answer path (with PII redaction) --------------------------------
         redacted_answer = self._redact_pii(answer)
         if redacted_answer != answer:
             reasons.append("pii_redacted")

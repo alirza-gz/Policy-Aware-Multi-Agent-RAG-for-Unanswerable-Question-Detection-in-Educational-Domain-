@@ -107,11 +107,18 @@ def question_category(q: Dict) -> str:
 def expected_action(q: Dict) -> str:
     """Gold governance action used for the decision confusion matrix.
 
-    answerable -> ANSWER; underspecified -> CLARIFY; other unanswerable -> ABSTAIN.
+    Prefers the dataset's own precomputed field (all v2 educational rows carry
+    one). Falls back to the legacy heuristic only for older question files
+    (e.g. sciq_questions.jsonl) that don't have it.
+
+    answerable -> ANSWER; partially_answerable -> CLARIFY; other unanswerable -> ABSTAIN.
     """
-    if q.get("answerable", True):
+    explicit = str(q.get("expected_action", "") or "").strip().upper()
+    if explicit in ("ANSWER", "CLARIFY", "ABSTAIN"):
+        return explicit
+    if q.get("gold_answerable", q.get("answerable", True)):
         return "ANSWER"
-    if question_category(q) == "underspecified":
+    if question_category(q) in ("underspecified", "partially_answerable"):
         return "CLARIFY"
     return "ABSTAIN"
 
@@ -151,7 +158,7 @@ def apply_systems(signals: List[Dict], systems: Dict, seed: int, reasoning_mode:
             "seed": seed,
             "reasoning_mode": reasoning_mode,
             "question": q["question"],
-            "gold_answerable": bool(q.get("answerable", True)),
+            "gold_answerable": bool(q["gold_answerable"]) if "gold_answerable" in q else bool(q.get("answerable", True)),
             "gold_answers": q.get("gold_answers", []),
             "category": question_category(q),
             "expected_action": expected_action(q),

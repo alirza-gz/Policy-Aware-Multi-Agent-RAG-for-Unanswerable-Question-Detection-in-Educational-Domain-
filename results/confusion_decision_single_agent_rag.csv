@@ -1,4 +1,4 @@
 ,pred_ANSWER,pred_CLARIFY,pred_ABSTAIN
-expected_ANSWER,291,0,9
-expected_CLARIFY,0,0,0
-expected_ABSTAIN,188,0,112
+expected_ANSWER,2691,0,309
+expected_CLARIFY,913,0,212
+expected_ABSTAIN,1422,0,1947

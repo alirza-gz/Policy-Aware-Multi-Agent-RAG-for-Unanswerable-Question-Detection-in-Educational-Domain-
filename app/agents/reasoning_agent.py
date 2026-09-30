@@ -29,6 +29,26 @@ SERVICE_UNAVAILABLE_MESSAGE = (
 )
 
 
+_ANSWER_FIELD_RE = re.compile(
+    r'("answer"\s*:\s*)"(.*?)"(\s*,\s*"is_answerable")',
+    re.DOTALL,
+)
+
+
+def _sanitize_json_quotes(raw: str) -> str:
+    """Escape unescaped double-quotes inside the "answer" field's string
+    value. The model occasionally writes natural-language quotes (e.g. or
+    "sketches") without escaping them, which breaks json.loads even though
+    the rest of the JSON is well-formed. This targets the one field most
+    likely to contain embedded quotes and leaves everything else untouched."""
+    def repl(m):
+        prefix, body, suffix = m.group(1), m.group(2), m.group(3)
+        body = body.replace('\\"', '"').replace('"', '\\"')
+        return f'{prefix}"{body}"{suffix}'
+    return _ANSWER_FIELD_RE.sub(repl, raw, count=1)
+
+
+
 class ReasoningAgent:
     def __init__(self, ollama_url: str = OLLAMA_URL, model: str = OLLAMA_MODEL, mode: str = REASONING_MODE):
         self.ollama_url = ollama_url
@@ -42,6 +62,8 @@ class ReasoningAgent:
             model,
             ollama_url,
         )
+
+    
 
     def _build_prompt(self, query: str, passages: List[Dict]) -> str:
         context = "\n\n".join([
@@ -61,11 +83,12 @@ class ReasoningAgent:
             "Decision rules:\n"
             f"1) If the passages do NOT contain enough information to answer, set "
             f"\"is_answerable\": false and \"answer\": \"{UNANSWERABLE_TOKEN}\".\n"
-            "2) If the question is ambiguous or underspecified (it could be interpreted in\n"
-            "   multiple substantially different ways), set \"needs_clarification\": true and\n"
-            "   provide a single focused \"clarification_question\".\n"
-            "3) Otherwise provide a concise, grounded answer.\n\n"
-            "Output requirements (return ONLY a JSON object, no markdown):\n"
+            "2) If the question has TWO OR MORE distinct parts and the retrieved passages "
+            "   only support answering SOME of those parts (not all), set "
+            "   \"needs_clarification\": true and explain in \"clarification_question\" "
+            "   which part cannot be answered from the material.\n"
+            "3) If the question itself is ambiguous or could mean several different things, "
+            "   also set \"needs_clarification\": true.\n"
             "{\n"
             '  "answer": string,\n'
             '  "is_answerable": boolean,\n'
@@ -85,13 +108,8 @@ class ReasoningAgent:
         payload = {
             "model": self.model,
             "prompt": prompt,
-            "temperature": 0.0,
             "stream": True,
-            "options": {
-                "seed": 42,
-                "top_p": 1.0,
-                "top_k": 1,
-            },
+            "options": {"temperature": 0.0, "seed": 42, "top_p": 1.0, "top_k": 1},
         }
 
         last_exception = None
@@ -180,8 +198,8 @@ class ReasoningAgent:
         if not isinstance(trace, list):
             trace = []
 
-        if not is_answerable:
-            confidence = 0.0
+        # if not is_answerable:
+        #     confidence = 0.0
 
         return {
             "answer": answer,
@@ -194,21 +212,26 @@ class ReasoningAgent:
         }
 
     def _parse_llm_output(self, raw_text: str) -> Dict:
-        """Parse JSON from model output. Fallback to wrapping raw text if parsing fails."""
         try:
             return json.loads(raw_text)
         except Exception:
-            m = re.search(r"\{.*\}", raw_text, re.S)
-            if m:
-                try:
-                    return json.loads(m.group(0))
-                except Exception:
-                    pass
-            return {
-                "answer": raw_text.strip(),
-                "trace": [],
-                "confidence": Config.CONFIDENCE_THRESHOLD,
-            }
+            pass
+        try:
+            return json.loads(_sanitize_json_quotes(raw_text))
+        except Exception:
+            pass
+        m = re.search(r"\{.*\}", raw_text, re.S)
+        if m:
+            try:
+                return json.loads(m.group(0))
+            except Exception:
+                pass
+        logger.warning("LLM output could not be parsed as JSON, treating as unanswerable")
+        return {
+            "answer": "",
+            "is_answerable": False,
+            "confidence": 0.0,
+        }
 
     def _mock_reason(self, query: str, passages: List[Dict]) -> Dict:
         """Deterministic lexical heuristic used when no LLM is available.

@@ -67,7 +67,7 @@ async def evaluate_question(
     base = {
         "id": q.get("id"),
         "question": question,
-        "gold_answerable": bool(q.get("answerable", True)),
+        "gold_answerable": bool(q["gold_answerable"]) if "gold_answerable" in q else bool(q.get("answerable", True)),
         "gold_answers": q.get("gold_answers", []),
         "retriever_confidence": round(retr_conf, 4),
         "reasoner_confidence": round(reasoner_conf, 4),

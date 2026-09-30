@@ -1,0 +1,10 @@
+# Smoke-test config (~100 questions, one seed, mock reasoner).
+questions: data/eval/educational_v2_questions.jsonl
+top_k: 5
+rag_threshold: 0.2
+reasoning_mode: mock
+seeds: [42]
+limit: 100
+governance: {}
+out_dir: results/smoke
+predictions_file: predictions_all.jsonl

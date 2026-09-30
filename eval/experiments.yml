@@ -1,33 +1,29 @@
-# ---------------------------------------------------------------------------
-# Reproducible experiment configuration for the thesis evaluation.
-# Every run_experiments.py invocation reads this file and copies it next to
-# the results, so any reported number can be traced back to its exact setup.
-# ---------------------------------------------------------------------------
+# Reproducible experiment configuration for the thesis evaluation (Option B).
+# Copied to results/experiments_config_used.yml on every run.
 
-# Labelled question set. Optional per-question field "category" enables the
-# per-category analysis (out_of_knowledge, underspecified, false_presupposition,
-# out_of_scope, low_confidence); questions without it are grouped as
-# "answerable" / "unlabeled".
 questions: data/eval/educational_v2_questions.jsonl
 
-# Retrieval depth (same for every system).
+# Retrieval depth after fusion/rerank (same for every retrieving system).
 top_k: 5
 
-# Reasoning runtime: "mock" (deterministic lexical heuristic, no LLM needed)
-# or "ollama" (uses OLLAMA_MODEL from config.yml, temperature 0).
+# RAG + Threshold baseline: abstain if max retrieval score < tau.
+# Independent of GovernanceAgent; documented for fairness.
+rag_threshold: 0.2
+
+# Reasoning runtime: "mock" (deterministic) or "ollama".
 reasoning_mode: ollama
 
-# Repeated runs for mean / standard deviation reporting. Each run uses one
-# seed; the seed controls question order and any stochastic components.
+# Repeated runs for mean / std / significance.
 seeds: [42, 123, 2024]
 
-# Cap on questions per run (0 = all).
+# Cap on questions per run (0 = all). Use 100 for smoke tests.
 limit: 0
 
-# Governance policy overrides applied to ALL governed systems (empty = use
-# config.yml values). Kept here so the evaluated policy is pinned in one file.
+# Governance overrides applied to all governed systems (empty = config.yml).
 governance: {}
 
-# Output locations.
+# Optional subset; default = all baselines + ablations in eval.baselines.
+# systems: null
+
 out_dir: results
 predictions_file: predictions_all.jsonl

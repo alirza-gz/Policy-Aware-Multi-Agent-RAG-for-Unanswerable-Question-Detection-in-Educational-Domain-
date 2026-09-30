@@ -1,19 +1,20 @@
-"""Run every baseline and ablation system over the labelled question set.
+"""Run every baseline and ablation over the labelled educational dataset.
 
-For each question the retriever and the reasoning agent run exactly ONCE per
-run; the cached signals are then fed to every system's decision layer
-(see ``eval/baselines.py``). This guarantees a strictly fair comparison:
-identical retriever, embedding model, LLM, prompts, and dataset - the systems
-differ only in how the final action is decided.
+Retrieval profiles
+------------------
+Systems that share (retrieval_mode, use_reranker) share one retriever+reasoner
+pass so comparisons remain fair within each profile. Profiles that differ
+(e.g. no_reranker, llm_no_rag, no_hybrid) collect separate signals.
 
-Reproducibility: all parameters come from ``eval/experiments.yml``; the config
-is copied into the output directory, seeds are fixed per run, and one
-predictions file is written per seed plus a combined file.
+Reproducibility: parameters come from ``eval/experiments.yml`` (copied to
+results/); seeds fixed per run.
 
 Usage:
     python -m eval.run_experiments
-    python -m eval.run_experiments --config eval/experiments.yml --reasoning-mode mock
+    python -m eval.run_experiments --reasoning-mode mock --limit 100
 """
+
+from __future__ import annotations
 
 import argparse
 import asyncio
@@ -22,7 +23,7 @@ import os
 import random
 import shutil
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import yaml
@@ -31,27 +32,22 @@ DEFAULT_CONFIG = "eval/experiments.yml"
 
 
 def _ollama_base_url() -> str:
-    """Base URL of the Ollama server, derived from config.yml's OLLAMA_URL."""
     from app.config import Config
 
-    gen_url = os.getenv("OLLAMA_API_URL", getattr(Config, "OLLAMA_URL", "http://localhost:11434/api/generate"))
-    # Strip the "/api/..." suffix to get the server root for /api/tags.
+    gen_url = os.getenv(
+        "OLLAMA_API_URL",
+        getattr(Config, "OLLAMA_URL", "http://localhost:11434/api/generate"),
+    )
     return gen_url.split("/api/")[0] or "http://localhost:11434"
 
 
 def preflight_ollama() -> None:
-    """Verify the Ollama server is reachable and the configured model is pulled.
-
-    Raises SystemExit with an actionable message instead of letting every
-    question fail one-by-one inside the reasoning agent's fallback path.
-    """
     import httpx
     from app.config import Config
 
     base = _ollama_base_url()
     model = os.getenv("OLLAMA_MODEL", getattr(Config, "OLLAMA_MODEL", "qwen2.5:3b-instruct"))
     tags_url = f"{base}/api/tags"
-
     try:
         resp = httpx.get(tags_url, timeout=10.0)
         resp.raise_for_status()
@@ -59,20 +55,14 @@ def preflight_ollama() -> None:
         raise SystemExit(
             f"[run_experiments] Ollama server not reachable at {base} ({e}).\n"
             f"  Start it with:  ollama serve\n"
-            f"  Then verify:    curl {tags_url}\n"
-            f"  Or switch to the mock reasoner: set reasoning_mode: mock in the config,\n"
-            f"  or run: python -m eval.run_experiments --reasoning-mode mock"
+            f"  Or run with: --reasoning-mode mock"
         )
-
     installed = [m.get("name", "") for m in resp.json().get("models", [])]
-    # Ollama tags are like "qwen2.5:3b-instruct"; accept an exact or prefix match.
     if not any(name == model or name.startswith(model.split(":")[0]) for name in installed):
         raise SystemExit(
-            f"[run_experiments] Ollama is running but model '{model}' is not pulled.\n"
-            f"  Installed models: {installed or '(none)'}\n"
-            f"  Pull it with:  ollama pull {model}"
+            f"[run_experiments] Ollama model '{model}' not pulled. Installed: {installed}"
         )
-    print(f"[run_experiments] Ollama preflight OK: server {base}, model '{model}' available.")
+    print(f"[run_experiments] Ollama preflight OK: {base}, model '{model}'")
 
 
 def load_config(path: str) -> Dict:
@@ -93,11 +83,6 @@ def load_questions(path: Path, limit: int) -> List[Dict]:
 
 
 def question_category(q: Dict) -> str:
-    """Category label for the per-category analysis.
-
-    Prefers an explicit ``category`` field; otherwise answerable questions are
-    labelled "answerable" and unanswerable ones "unlabeled".
-    """
     cat = str(q.get("category", "") or "").strip().lower()
     if cat:
         return cat
@@ -105,14 +90,6 @@ def question_category(q: Dict) -> str:
 
 
 def expected_action(q: Dict) -> str:
-    """Gold governance action used for the decision confusion matrix.
-
-    Prefers the dataset's own precomputed field (all v2 educational rows carry
-    one). Falls back to the legacy heuristic only for older question files
-    (e.g. sciq_questions.jsonl) that don't have it.
-
-    answerable -> ANSWER; partially_answerable -> CLARIFY; other unanswerable -> ABSTAIN.
-    """
     explicit = str(q.get("expected_action", "") or "").strip().upper()
     if explicit in ("ANSWER", "CLARIFY", "ABSTAIN"):
         return explicit
@@ -124,30 +101,98 @@ def expected_action(q: Dict) -> str:
 
 
 def _retriever_confidence(passages: List[Dict]) -> float:
+    """Governance-calibrated retrieval confidence in roughly [0, 1].
+
+    Prefer per-passage ``dense_score`` (FAISS IP) so hybrid RRF / cross-encoder
+    score scales do not silently invalidate ``retriever_abstain_below`` and the
+    RAG+Threshold baseline. Falls back to ``score`` when dense_score is absent
+    (e.g. dense-only retrieval before annotation).
+    """
+    if not passages:
+        return 0.0
+    dense_vals = [
+        float(p["dense_score"])
+        for p in passages
+        if p.get("dense_score") is not None
+    ]
+    if dense_vals:
+        return max(dense_vals)
     return max((float(p.get("score", 0.0)) for p in passages), default=0.0)
 
 
-async def collect_signals(questions: List[Dict], retriever, reasoner, top_k: int) -> List[Dict]:
-    """Run retriever + reasoner once per question and cache all signals."""
+def unique_profiles(system_names: List[str], profiles: Dict) -> List[Tuple[str, bool]]:
+    seen = []
+    for name in system_names:
+        prof = profiles[name]
+        if prof not in seen:
+            seen.append(prof)
+    return seen
+
+
+async def collect_signals_for_profile(
+    questions: List[Dict],
+    retriever,
+    reasoner,
+    top_k: int,
+    retrieval_mode: str,
+    use_reranker: bool,
+) -> List[Dict]:
+    """Run retrieval(+optional rerank)+reasoner once per question for one profile."""
     signals = []
     for i, q in enumerate(questions, 1):
-        passages = retriever.retrieve(q["question"], top_k=top_k)
-        reasoning_result = await reasoner.reason(q["question"], passages)
+        if retrieval_mode == "none":
+            pipe = {
+                "passages": [],
+                "dense": [],
+                "sparse": [],
+                "fused": [],
+                "retrieval_mode": "none",
+                "reranked": False,
+                "retrieved_ids": [],
+            }
+            # Reason with empty passages (LLM-without-RAG).
+            reasoning_result = await reasoner.reason(q["question"], [])
+        else:
+            pipe = retriever.retrieve_pipeline(
+                q["question"],
+                top_k=top_k,
+                mode=retrieval_mode,
+                use_reranker=use_reranker,
+            )
+            reasoning_result = await reasoner.reason(q["question"], pipe["passages"])
+
         signals.append(
             {
                 "question": q,
-                "passages": passages,
-                "retriever_confidence": _retriever_confidence(passages),
+                "passages": pipe["passages"],
+                "dense": pipe.get("dense", []),
+                "sparse": pipe.get("sparse", []),
+                "fused": pipe.get("fused", []),
+                "retrieved_ids": pipe.get("retrieved_ids", []),
+                "retrieval_mode": pipe.get("retrieval_mode", retrieval_mode),
+                "reranked": bool(pipe.get("reranked", False)),
+                "retriever_confidence": _retriever_confidence(pipe["passages"]),
                 "reasoning_result": reasoning_result,
             }
         )
         if i % 10 == 0 or i == len(questions):
-            print(f"[run_experiments] Signals collected for {i}/{len(questions)} questions")
+            print(
+                f"[run_experiments] profile=({retrieval_mode},rerank={use_reranker}) "
+                f"{i}/{len(questions)}"
+            )
     return signals
 
 
-def apply_systems(signals: List[Dict], systems: Dict, seed: int, reasoning_mode: str = "mock") -> List[Dict]:
-    """Apply every system's decision layer to the cached signals."""
+def apply_systems_for_profile(
+    signals: List[Dict],
+    systems: Dict,
+    system_names: List[str],
+    seed: int,
+    reasoning_mode: str,
+    rag_threshold: float,
+    embed_model: str,
+    llm_model: str,
+) -> List[Dict]:
     rows = []
     for s in signals:
         q = s["question"]
@@ -158,18 +203,42 @@ def apply_systems(signals: List[Dict], systems: Dict, seed: int, reasoning_mode:
             "seed": seed,
             "reasoning_mode": reasoning_mode,
             "question": q["question"],
-            "gold_answerable": bool(q["gold_answerable"]) if "gold_answerable" in q else bool(q.get("answerable", True)),
+            "course": q.get("course"),
+            "gold_answerable": bool(q["gold_answerable"])
+            if "gold_answerable" in q
+            else bool(q.get("answerable", True)),
             "gold_answers": q.get("gold_answers", []),
+            "evidence_ids": list(q.get("evidence_ids") or ([] if not q.get("evidence_id") else [q["evidence_id"]])),
             "category": question_category(q),
             "expected_action": expected_action(q),
             "retriever_confidence": round(retr_conf, 4),
             "reasoner_confidence": round(float(rr.get("confidence", 0.0)), 4),
+            "answerability_confidence": round(
+                float(rr.get("answerability_confidence", rr.get("confidence", 0.0))), 4
+            ),
+            # Continuous unanswerable-risk score for ROC/PR-AUC (documented).
+            "unanswerable_score": round(
+                1.0
+                - float(rr.get("answerability_confidence", rr.get("confidence", 0.0))),
+                4,
+            ),
             "model_is_answerable": bool(rr.get("is_answerable", False)),
             "model_needs_clarification": bool(rr.get("needs_clarification", False)),
             "raw_answer": str(rr.get("answer", "") or ""),
             "n_passages": len(s["passages"]),
+            "retrieved_ids": list(s.get("retrieved_ids") or []),
+            "passage_texts": [str(p.get("text", "") or "") for p in (s.get("passages") or [])],
+            "dense_ids": [str(p.get("id", "")) for p in (s.get("dense") or [])],
+            "sparse_ids": [str(p.get("id", "")) for p in (s.get("sparse") or [])],
+            "fused_ids": [str(p.get("id", "")) for p in (s.get("fused") or [])],
+            "retrieval_mode": s.get("retrieval_mode"),
+            "reranked": bool(s.get("reranked", False)),
+            "rag_threshold": float(rag_threshold),
+            "embed_model": embed_model,
+            "llm_model": llm_model,
         }
-        for name, decide in systems.items():
+        for name in system_names:
+            decide = systems[name]
             row = dict(base)
             decision = decide(rr, retr_conf)
             row.update(
@@ -185,69 +254,122 @@ def apply_systems(signals: List[Dict], systems: Dict, seed: int, reasoning_mode:
 
 
 async def run(args) -> None:
+    from app.config import Config
+    from eval.baselines import ALL_SYSTEMS, RETRIEVAL_PROFILES, build_systems
+
     cfg = load_config(args.config)
     if args.reasoning_mode:
         cfg["reasoning_mode"] = args.reasoning_mode
     if args.questions:
         cfg["questions"] = args.questions
+    if args.limit is not None:
+        cfg["limit"] = args.limit
 
     out_dir = Path(cfg.get("out_dir", "results"))
     out_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(args.config, out_dir / "experiments_config_used.yml")
 
-    questions = load_questions(Path(cfg["questions"]), int(cfg.get("limit", 0)))
+    questions = load_questions(Path(cfg["questions"]), int(cfg.get("limit", 0) or 0))
     print(f"[run_experiments] Loaded {len(questions)} questions from {cfg['questions']}")
+
+    # Fail fast if evidence IDs are missing (retrieval metrics need them).
+    n_with_ev = sum(1 for q in questions if q.get("evidence_passage"))
+    n_linked = sum(1 for q in questions if q.get("evidence_ids") or q.get("evidence_id"))
+    if n_with_ev and n_linked == 0:
+        print(
+            "[run_experiments] WARNING: evidence passages present but no evidence_ids. "
+            "Run: python -m eval.link_evidence_ids  then rebuild the FAISS index."
+        )
 
     os.environ["REASONING_MODE"] = cfg.get("reasoning_mode", "mock")
     reasoning_mode = cfg.get("reasoning_mode", "mock")
-
-    # Fail fast with an actionable message if Ollama is selected but unavailable,
-    # rather than silently producing empty-answer fallback rows for every question.
     if reasoning_mode == "ollama":
         preflight_ollama()
 
-    # Import after REASONING_MODE is set so the agents pick it up.
-    from app.agents.retriever_agent import RetrieverAgent
+    from app.agents.hybrid_retriever import HybridRetrieverAgent
     from app.agents.reasoning_agent import ReasoningAgent
-    from eval.baselines import build_systems
+    from app.agents.reranker_agent import RerankerAgent
 
-    print("[run_experiments] Initialising agents ...")
-    retriever = RetrieverAgent()
+    rag_threshold = float(cfg.get("rag_threshold", 0.2))
+    top_k = int(cfg.get("top_k", 5))
+    embed_model = getattr(Config, "EMBED_MODEL", "all-MiniLM-L6-v2")
+    llm_model = getattr(Config, "OLLAMA_MODEL", "qwen2.5:3b-instruct")
+
+    print("[run_experiments] Initialising hybrid retriever + reranker ...")
+    reranker = RerankerAgent(enabled=True)
+    retriever = HybridRetrieverAgent(reranker=reranker)
     reasoner = ReasoningAgent(mode=reasoning_mode)
-    systems = build_systems(cfg.get("governance") or {})
-    print(f"[run_experiments] Systems under evaluation: {list(systems)}")
+    systems = build_systems(cfg.get("governance") or {}, rag_threshold=rag_threshold)
 
-    seeds = list(cfg.get("seeds", [42]))
+    # Allow subset via config.
+    selected = list(cfg.get("systems") or ALL_SYSTEMS)
+    for name in selected:
+        if name not in systems:
+            raise SystemExit(f"Unknown system '{name}'. Known: {list(systems)}")
+    print(f"[run_experiments] Systems: {selected}")
+
+    profiles = unique_profiles(selected, RETRIEVAL_PROFILES)
+    print(f"[run_experiments] Retrieval profiles: {profiles}")
+
+    seeds = list(cfg.get("seeds") or [42])
     all_rows: List[Dict] = []
+
     for seed in seeds:
-        print(f"[run_experiments] === Run with seed {seed} ===")
         random.seed(seed)
         np.random.seed(seed)
-        ordered = list(questions)
-        random.Random(seed).shuffle(ordered)
+        # Shuffle a copy of questions; same seed => same order.
+        qs = list(questions)
+        random.shuffle(qs)
 
-        signals = await collect_signals(ordered, retriever, reasoner, int(cfg.get("top_k", 5)))
-        rows = apply_systems(signals, systems, seed, reasoning_mode)
-        all_rows.extend(rows)
+        seed_rows: List[Dict] = []
+        for mode, use_rerank in profiles:
+            names = [
+                n
+                for n in selected
+                if RETRIEVAL_PROFILES[n] == (mode, use_rerank)
+            ]
+            if not names:
+                continue
+            print(f"[run_experiments] seed={seed} profile=({mode}, rerank={use_rerank}) -> {names}")
+            # For profiles that need reranker disabled, pass use_reranker=False
+            # even though the agent exists (FULL - Reranker ablation).
+            signals = await collect_signals_for_profile(
+                qs, retriever, reasoner, top_k, mode, use_rerank
+            )
+            seed_rows.extend(
+                apply_systems_for_profile(
+                    signals,
+                    systems,
+                    names,
+                    seed,
+                    reasoning_mode,
+                    rag_threshold,
+                    embed_model,
+                    llm_model,
+                )
+            )
 
-        run_path = out_dir / f"predictions_seed{seed}.jsonl"
-        with open(run_path, "w", encoding="utf-8") as f:
-            for row in rows:
+        seed_path = out_dir / f"predictions_seed{seed}.jsonl"
+        with open(seed_path, "w", encoding="utf-8") as f:
+            for row in seed_rows:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
-        print(f"[run_experiments] Wrote {len(rows)} rows to {run_path}")
+        print(f"[run_experiments] Wrote {seed_path} ({len(seed_rows)} rows)")
+        all_rows.extend(seed_rows)
 
-    combined = out_dir / cfg.get("predictions_file", "predictions_all.jsonl")
-    with open(combined, "w", encoding="utf-8") as f:
+    pred_name = cfg.get("predictions_file", "predictions_all.jsonl")
+    all_path = out_dir / pred_name
+    with open(all_path, "w", encoding="utf-8") as f:
         for row in all_rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    print(f"[run_experiments] Wrote combined predictions ({len(all_rows)} rows) to {combined}")
+    print(f"[run_experiments] Wrote {all_path} ({len(all_rows)} rows)")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Run all baseline/ablation experiments.")
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default=DEFAULT_CONFIG)
-    parser.add_argument("--questions", default=None, help="Override the question file.")
-    parser.add_argument("--reasoning-mode", choices=["ollama", "mock"], default=None)
+    parser.add_argument("--questions", default=None)
+    parser.add_argument("--reasoning-mode", default=None, choices=["mock", "ollama"])
+    parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
     asyncio.run(run(args))
 

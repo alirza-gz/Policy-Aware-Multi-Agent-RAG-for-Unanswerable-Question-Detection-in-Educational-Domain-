@@ -1,33 +1,41 @@
 """Baseline and ablation system definitions for the thesis evaluation.
 
-Every system consumes the SAME cached per-question signals (retrieved passages,
-retriever confidence, and the reasoning agent's output) so the comparison is
-strictly fair: identical retriever, embedding model, LLM, and prompts. The
-systems differ ONLY in the decision layer applied on top of those signals.
+FULL system (advisor Option B)
+------------------------------
+    Multi-Agent RAG + Hybrid Retrieval + Reranker + Answerability + Policy
 
-Systems
--------
-vanilla_rag       Retriever + LLM only. The raw generated answer is always
-                  returned (action is always ANSWER). No answerability
-                  detection of any kind.
-single_agent_rag  One agent (the reasoner) self-governs: its own
-                  ``is_answerable`` / ``needs_clarification`` flags are
-                  respected, but there is NO Governance Agent (no policy
-                  thresholds, no safety rules, no confidence bands).
-policy_aware      The current, unmodified Policy-Aware Multi-Agent RAG:
-                  GovernanceAgent.decide() with the configured policy.
+Baselines
+---------
+    llm_no_rag       LLM only (no retrieval). Unavoidable difference: no corpus.
+    standard_rag     Retriever (+rerank) -> LLM; always ANSWER; no governance.
+    rag_threshold    Standard RAG + retrieval-confidence threshold abstention.
+                     Configurable ``rag_threshold``; does NOT reuse GovernanceAgent.
+    agentic_rag      Honest proxy for Agentic RAG: reasoner self-governs via its
+                     own is_answerable / needs_clarification flags. No separate
+                     Policy/Governance Agent. Not an iterative tool-calling loop
+                     (the codebase has none); documented as such.
+    full_system      Policy-Aware Multi-Agent RAG (hybrid + rerank + governance).
 
-Ablations (variants of policy_aware, built ONLY through the constructor
-parameters GovernanceAgent already exposes -- the agent code is untouched)
---------------------------------------------------------------------------
-no_governance           GOVERNANCE_ENABLED=false equivalent (= single agent).
-no_clarification        CLARIFY path disabled: clarify band collapsed and the
-                        reasoner's clarification flag ignored.
-no_retriever_confidence Retrieval-confidence abstention rule disabled.
-no_policy_rules         Safety policy (banned phrases) disabled.
+Ablations (delta vs FULL; only the named component changes)
+-----------------------------------------------------------
+    no_policy_agent       FULL - Policy Agent   (= agentic_rag decide on FULL retrieval)
+    no_answerability      FULL - Answerability  (governance with answerability_enabled=false;
+                                                 safety/PII remain; typically ANSWER)
+    no_reranker           FULL - Reranker       (same hybrid retrieval, skip rerank)
+    no_multi_agent        FULL - Multi-Agent    (single-agent decide on FULL retrieval)
+    no_policy_rules       FULL - Policy Rules   (banned-phrase safety disabled)
+    no_hybrid             FULL - Hybrid         (dense-only + rerank + governance;
+                                                 optional ablation kept for Phase 1)
+
+Fairness
+--------
+Systems that share the same (retrieval_mode, use_reranker) tuple share one
+retriever+reasoner pass. Decision layers then diverge on cached signals.
 """
 
-from typing import Dict, List, Optional
+from __future__ import annotations
+
+from typing import Dict, List, Optional, Tuple
 
 from app.agents.governance_agent import (
     GovernanceAgent,
@@ -37,42 +45,81 @@ from app.agents.governance_agent import (
     ABSTAIN_MESSAGE,
 )
 
-# The three baselines required by the thesis evaluation.
-BASELINE_SYSTEMS = ["vanilla_rag", "single_agent_rag", "policy_aware"]
+# Advisor-facing names (also used as ``mode`` in prediction rows).
+BASELINE_SYSTEMS = [
+    "llm_no_rag",
+    "standard_rag",
+    "rag_threshold",
+    "agentic_rag",
+    "full_system",
+]
 
-# Ablation configurations: which GovernanceAgent constructor overrides to use.
-# ``None`` for a governance key means "keep the configured value".
-ABLATION_SYSTEMS = {
-    "full_system": {},  # identical to policy_aware; kept for the ablation table
-    "no_governance": {"disable_governance": True},
-    "no_clarification": {
-        "governance": {"clarify_band": [0.0, 0.0]},
-        "ignore_model_clarification": True,
-    },
-    "no_retriever_confidence": {"governance": {"retriever_abstain_below": -1.0}},
-    # GovernanceAgent treats an empty list as "use config", so pass a sentinel
-    # phrase that can never occur in an answer -> safety rules effectively off.
-    "no_policy_rules": {"banned_phrases": ["@@never-matches-sentinel@@"]},
+ABLATION_SYSTEMS = [
+    "no_policy_agent",
+    "no_answerability",
+    "no_reranker",
+    "no_multi_agent",
+    "no_policy_rules",
+    "no_hybrid",
+]
+
+ALL_SYSTEMS = BASELINE_SYSTEMS + ABLATION_SYSTEMS
+
+# Retrieval profile per system: (retrieval_mode, use_reranker)
+# FULL uses hybrid + rerank. Ablations change exactly one axis where applicable.
+RETRIEVAL_PROFILES: Dict[str, Tuple[str, bool]] = {
+    "llm_no_rag": ("none", False),
+    "standard_rag": ("hybrid", True),
+    "rag_threshold": ("hybrid", True),
+    "agentic_rag": ("hybrid", True),
+    "full_system": ("hybrid", True),
+    "no_policy_agent": ("hybrid", True),
+    "no_answerability": ("hybrid", True),
+    "no_reranker": ("hybrid", False),
+    "no_multi_agent": ("hybrid", True),
+    "no_policy_rules": ("hybrid", True),
+    "no_hybrid": ("dense", True),
 }
-
-ALL_SYSTEMS = BASELINE_SYSTEMS + [s for s in ABLATION_SYSTEMS if s != "full_system"] + ["full_system"]
 
 
 def _row(action: str, final_answer: str, reason: str) -> Dict:
     return {"action": action, "final_answer": final_answer, "reason": reason}
 
 
-def decide_vanilla_rag(reasoning_result: Dict, retriever_confidence: float) -> Dict:
-    """Vanilla RAG: retriever + LLM, the generated answer is always returned."""
+def decide_always_answer(reasoning_result: Dict, retriever_confidence: float) -> Dict:
+    """Standard RAG / LLM-no-RAG: always return the generated answer."""
     return _row(
         ACTION_ANSWER,
         str(reasoning_result.get("answer", "") or ""),
-        "vanilla_rag_always_answers",
+        "always_answer_no_governance",
     )
 
 
-def decide_single_agent_rag(reasoning_result: Dict, retriever_confidence: float) -> Dict:
-    """Single-Agent RAG: the reasoner's own flags, no Governance Agent."""
+def decide_rag_threshold(
+    reasoning_result: Dict,
+    retriever_confidence: float,
+    threshold: float = 0.2,
+) -> Dict:
+    """RAG + Threshold: abstain only when retrieval confidence is below tau.
+
+    Intentionally independent of GovernanceAgent (no clarify band, no
+    answerability gate, no banned-phrase policy).
+    """
+    if float(retriever_confidence) < float(threshold):
+        return _row(
+            ACTION_ABSTAIN,
+            ABSTAIN_MESSAGE,
+            f"rag_threshold_below:{threshold}",
+        )
+    return _row(
+        ACTION_ANSWER,
+        str(reasoning_result.get("answer", "") or ""),
+        f"rag_threshold_pass:{threshold}",
+    )
+
+
+def decide_agentic_rag(reasoning_result: Dict, retriever_confidence: float) -> Dict:
+    """Single-agent / Agentic RAG proxy: reasoner self-governs, no Policy Agent."""
     if not bool(reasoning_result.get("is_answerable", False)):
         return _row(ACTION_ABSTAIN, ABSTAIN_MESSAGE, "reasoner_self_reported_unanswerable")
     if bool(reasoning_result.get("needs_clarification", False)):
@@ -88,7 +135,7 @@ def decide_single_agent_rag(reasoning_result: Dict, retriever_confidence: float)
 
 
 class GovernedSystem:
-    """A policy-aware system (full or ablated) built on the unmodified agent."""
+    """Policy-aware system (full or ablated) on the unmodified GovernanceAgent."""
 
     def __init__(
         self,
@@ -113,30 +160,50 @@ class GovernedSystem:
         return _row(decision["action"], decision["final_answer"], decision["reason"])
 
 
-def build_systems(seed_governance: Optional[Dict] = None) -> Dict[str, callable]:
-    """Instantiate every system as ``name -> decide(reasoning_result, retr_conf)``.
-
-    ``seed_governance`` optionally overrides the base governance config for all
-    governed systems (used by the experiment config file).
-    """
+def build_systems(
+    seed_governance: Optional[Dict] = None,
+    rag_threshold: float = 0.2,
+) -> Dict[str, callable]:
+    """Instantiate every system as ``name -> decide(reasoning_result, retr_conf)``."""
     base_gov = dict(seed_governance or {})
+    tau = float(rag_threshold)
+
+    def _threshold_decide(rr, rc, _tau=tau):
+        return decide_rag_threshold(rr, rc, threshold=_tau)
+
+    full = GovernedSystem(governance=base_gov or None)
+    no_ans_gov = dict(base_gov)
+    no_ans_gov["answerability_enabled"] = False
 
     systems: Dict[str, callable] = {
-        "vanilla_rag": decide_vanilla_rag,
-        "single_agent_rag": decide_single_agent_rag,
-        "policy_aware": GovernedSystem(governance=base_gov or None).decide,
+        "llm_no_rag": decide_always_answer,
+        "standard_rag": decide_always_answer,
+        "rag_threshold": _threshold_decide,
+        "agentic_rag": decide_agentic_rag,
+        "full_system": full.decide,
+        # Ablations
+        "no_policy_agent": decide_agentic_rag,
+        "no_answerability": GovernedSystem(governance=no_ans_gov).decide,
+        "no_reranker": GovernedSystem(governance=base_gov or None).decide,
+        "no_multi_agent": decide_agentic_rag,
+        "no_policy_rules": GovernedSystem(
+            governance=base_gov or None,
+            banned_phrases=["@@never-matches-sentinel@@"],
+        ).decide,
+        "no_hybrid": GovernedSystem(governance=base_gov or None).decide,
     }
-
-    for name, cfg in ABLATION_SYSTEMS.items():
-        if cfg.get("disable_governance"):
-            systems[name] = decide_single_agent_rag
-            continue
-        gov = dict(base_gov)
-        gov.update(cfg.get("governance", {}))
-        systems[name] = GovernedSystem(
-            governance=gov or None,
-            banned_phrases=cfg.get("banned_phrases"),
-            ignore_model_clarification=cfg.get("ignore_model_clarification", False),
-        ).decide
-
     return systems
+
+
+def systems_for_profile(mode: str, use_reranker: bool) -> List[str]:
+    """Return system names that share a retrieval profile."""
+    return [
+        name
+        for name, (m, r) in RETRIEVAL_PROFILES.items()
+        if m == mode and r == use_reranker and name in ALL_SYSTEMS
+    ]
+
+
+# Back-compat aliases used by older report code / docs.
+decide_vanilla_rag = decide_always_answer
+decide_single_agent_rag = decide_agentic_rag

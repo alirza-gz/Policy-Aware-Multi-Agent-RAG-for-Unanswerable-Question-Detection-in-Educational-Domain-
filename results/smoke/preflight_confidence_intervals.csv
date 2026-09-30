@@ -1,0 +1,16 @@
+system,metric,mean,ci_low,ci_high,n,n_boot,alpha,method
+full_system,accuracy,0.64,0.54,0.74,100,1000,0.05,percentile_bootstrap
+full_system,coverage,0.73,0.64,0.81,100,1000,0.05,percentile_bootstrap
+full_system,hallucination_rate,0.5714,0.4444,0.6984,63,1000,0.05,percentile_bootstrap
+standard_rag,accuracy,0.37,0.27,0.47,100,1000,0.05,percentile_bootstrap
+standard_rag,coverage,1.0,1.0,1.0,100,1000,0.05,percentile_bootstrap
+standard_rag,hallucination_rate,0.7619,0.6508,0.873,63,1000,0.05,percentile_bootstrap
+agentic_rag,accuracy,0.52,0.42,0.62,100,1000,0.05,percentile_bootstrap
+agentic_rag,coverage,0.85,0.78,0.9102,100,1000,0.05,percentile_bootstrap
+agentic_rag,hallucination_rate,0.7619,0.6508,0.873,63,1000,0.05,percentile_bootstrap
+no_reranker,accuracy,0.66,0.57,0.76,100,1000,0.05,percentile_bootstrap
+no_reranker,coverage,0.71,0.62,0.8,100,1000,0.05,percentile_bootstrap
+no_reranker,hallucination_rate,0.5397,0.4123,0.6667,63,1000,0.05,percentile_bootstrap
+llm_no_rag,accuracy,0.37,0.27,0.47,100,1000,0.05,percentile_bootstrap
+llm_no_rag,coverage,1.0,1.0,1.0,100,1000,0.05,percentile_bootstrap
+llm_no_rag,hallucination_rate,0.0,0.0,0.0,63,1000,0.05,percentile_bootstrap

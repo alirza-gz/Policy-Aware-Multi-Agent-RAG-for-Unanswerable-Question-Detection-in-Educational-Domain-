@@ -1,0 +1,17 @@
+reference,system,label,n_paired,b_A0B1,c_A1B0,statistic,p_value,effect_size,effect_size_name,from_prediction_rows
+full_system,standard_rag,binary_detection_correct,100,0,27,25.037,5.623957756679237e-07,-0.27,proportion_difference,True
+full_system,standard_rag,expected_action_correct,100,0,15,13.0667,0.0003005976074404506,-0.15,proportion_difference,True
+full_system,rag_threshold,binary_detection_correct,100,0,24,22.0417,2.6679545936247906e-06,-0.24,proportion_difference,True
+full_system,rag_threshold,expected_action_correct,100,0,12,10.0833,0.0014961642897455517,-0.12,proportion_difference,True
+full_system,agentic_rag,binary_detection_correct,100,0,12,10.0833,0.0014961642897455517,-0.12,proportion_difference,True
+full_system,agentic_rag,expected_action_correct,100,0,6,4.1667,0.041226833337163815,-0.06,proportion_difference,True
+full_system,llm_no_rag,binary_detection_correct,100,0,27,25.037,5.623957756679237e-07,-0.27,proportion_difference,True
+full_system,llm_no_rag,expected_action_correct,100,0,15,13.0667,0.0003005976074404506,-0.15,proportion_difference,True
+full_system,no_reranker,binary_detection_correct,100,3,1,0.25,0.6170750774519739,0.02,proportion_difference,True
+full_system,no_reranker,expected_action_correct,100,3,2,0.0,1.0,0.01,proportion_difference,True
+full_system,no_hybrid,binary_detection_correct,100,0,0,0.0,1.0,0.0,proportion_difference,True
+full_system,no_hybrid,expected_action_correct,100,1,1,0.5,0.47950012218695337,0.0,proportion_difference,True
+full_system,no_answerability,binary_detection_correct,100,0,27,25.037,5.623957756679237e-07,-0.27,proportion_difference,True
+full_system,no_answerability,expected_action_correct,100,0,15,13.0667,0.0003005976074404506,-0.15,proportion_difference,True
+full_system,no_policy_agent,binary_detection_correct,100,0,12,10.0833,0.0014961642897455517,-0.12,proportion_difference,True
+full_system,no_policy_agent,expected_action_correct,100,0,6,4.1667,0.041226833337163815,-0.06,proportion_difference,True

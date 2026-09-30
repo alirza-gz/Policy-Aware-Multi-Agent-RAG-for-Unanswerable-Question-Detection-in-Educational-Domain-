@@ -1,0 +1,12 @@
+system,llm_model,embed_model,retrieval_mode,reranker,top_k_passages,rag_threshold,reasoning_mode,seed_example
+agentic_rag,qwen2.5:3b-instruct,all-MiniLM-L6-v2,hybrid,True,5,0.2,mock,42
+full_system,qwen2.5:3b-instruct,all-MiniLM-L6-v2,hybrid,True,5,0.2,mock,42
+llm_no_rag,qwen2.5:3b-instruct,all-MiniLM-L6-v2,none,False,0,0.2,mock,42
+no_answerability,qwen2.5:3b-instruct,all-MiniLM-L6-v2,hybrid,True,5,0.2,mock,42
+no_hybrid,qwen2.5:3b-instruct,all-MiniLM-L6-v2,dense,True,5,0.2,mock,42
+no_multi_agent,qwen2.5:3b-instruct,all-MiniLM-L6-v2,hybrid,True,5,0.2,mock,42
+no_policy_agent,qwen2.5:3b-instruct,all-MiniLM-L6-v2,hybrid,True,5,0.2,mock,42
+no_policy_rules,qwen2.5:3b-instruct,all-MiniLM-L6-v2,hybrid,True,5,0.2,mock,42
+no_reranker,qwen2.5:3b-instruct,all-MiniLM-L6-v2,hybrid,False,5,0.2,mock,42
+rag_threshold,qwen2.5:3b-instruct,all-MiniLM-L6-v2,hybrid,True,5,0.2,mock,42
+standard_rag,qwen2.5:3b-instruct,all-MiniLM-L6-v2,hybrid,True,5,0.2,mock,42

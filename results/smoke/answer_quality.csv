@@ -1,0 +1,12 @@
+system,n_answerable,n_answered,answer_rate_on_answerable,exact_match,token_f1,semantic_similarity,groundedness,exact_match_all_answerable,token_f1_all_answerable
+agentic_rag,37,37,1.0,0.0,0.103,,0.9943,0.0,0.103
+full_system,37,37,1.0,0.0,0.103,,0.9844,0.0,0.103
+llm_no_rag,37,37,1.0,0.0,0.0,,,0.0,0.0
+no_answerability,37,37,1.0,0.0,0.103,,0.9844,0.0,0.103
+no_hybrid,37,37,1.0,0.0,0.1032,,0.9839,0.0,0.1032
+no_multi_agent,37,37,1.0,0.0,0.103,,0.9943,0.0,0.103
+no_policy_agent,37,37,1.0,0.0,0.103,,0.9943,0.0,0.103
+no_policy_rules,37,37,1.0,0.0,0.103,,0.9844,0.0,0.103
+no_reranker,37,37,1.0,0.0,0.1078,,0.9833,0.0,0.1078
+rag_threshold,37,37,1.0,0.0,0.103,,0.9943,0.0,0.103
+standard_rag,37,37,1.0,0.0,0.103,,0.9943,0.0,0.103

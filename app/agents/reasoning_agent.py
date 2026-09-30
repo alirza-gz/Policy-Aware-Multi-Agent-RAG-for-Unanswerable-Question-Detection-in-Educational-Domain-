@@ -256,7 +256,11 @@ class ReasoningAgent:
         for i, p in enumerate(passages):
             p_words = set(re.findall(r"[a-z0-9]+", (p.get("text", "") or "").lower()))
             overlap = len(q_words & p_words)
-            retrieval_score = float(p.get("score", 0.0))
+            # Prefer dense_score when hybrid/rerank rewrite ``score`` to RRF/CE scales.
+            if p.get("dense_score") is not None:
+                retrieval_score = float(p["dense_score"])
+            else:
+                retrieval_score = float(p.get("score", 0.0))
             combined = overlap + retrieval_score
             if combined > best_score:
                 best_score = combined
@@ -264,7 +268,12 @@ class ReasoningAgent:
                 best_overlap = overlap
 
         coverage = (best_overlap / len(q_words)) if q_words else 0.0
-        retriever_top = max((float(p.get("score", 0.0)) for p in passages), default=0.0)
+        def _calibrated_score(p: Dict) -> float:
+            if p.get("dense_score") is not None:
+                return float(p["dense_score"])
+            return float(p.get("score", 0.0))
+
+        retriever_top = max((_calibrated_score(p) for p in passages), default=0.0)
 
         # Ambiguous / underspecified: extremely short question with no clear focus.
         needs_clarification = len(q_words) <= 1 and retriever_top < 0.5

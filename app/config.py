@@ -81,3 +81,21 @@ _DEFAULT_GOVERNANCE = {
 }
 if not hasattr(Config, "GOVERNANCE"):
     setattr(Config, "GOVERNANCE", _DEFAULT_GOVERNANCE)
+
+# Additive hybrid retrieval / reranker defaults (Option B).
+if not hasattr(Config, "RETRIEVAL"):
+    setattr(
+        Config,
+        "RETRIEVAL",
+        {"mode": "hybrid", "rrf_k": 60, "candidate_k": 20},
+    )
+if not hasattr(Config, "RERANKER"):
+    setattr(
+        Config,
+        "RERANKER",
+        {
+            "enabled": True,
+            "model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+            "top_k": 5,
+        },
+    )

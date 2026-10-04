@@ -20,6 +20,50 @@ RE_DATE = re.compile(r'\b(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d
 RE_ID = re.compile(r'\b(?:id|ssn|passport|card)[\s:]*[A-Za-z0-9-]{4,}\b', re.IGNORECASE)
 # Names: this is heuristic; you can replace with NER later
 RE_NAME = re.compile(r'\b([A-Z][a-z]{1,20}\s[A-Z][a-z]{1,20})\b')
+
+# Course/domain technical terms that match the same "Capitalized Capitalized"
+# shape as a person's full name (e.g. "Random Forest", "Gradient Descent").
+# Without this exclusion list, RE_NAME redacts these terms as [REDACTED_NAME]
+# in every answer that mentions them, which both destroys answer content in
+# this technical/educational domain (where there is essentially no real PII
+# risk to begin with) and artificially lowers answer-quality metrics for every
+# governed system relative to an ungoverned baseline. This is a targeted,
+# low-risk mitigation; a real NER model would be a more principled fix.
+_TECHNICAL_BIGRAM_TERMS = {
+    "random forest", "gradient descent", "naive bayes", "support vector",
+    "decision tree", "neural network", "central limit", "principal component",
+    "convolutional neural", "markov chain", "monte carlo", "data mining",
+    "machine learning", "bayes theorem", "poisson distribution",
+    "deep learning", "data science", "big data", "data warehouse",
+    "data lake", "data pipeline", "business intelligence", "feature engineering",
+    "data visualization", "data governance", "exploratory data", "data wrangling",
+    "standard deviation", "hypothesis testing", "confidence interval",
+    "regression analysis", "normal distribution", "statistical significance",
+    "descriptive statistics", "bayesian statistics", "analysis variance",
+    "linear regression", "logistic regression", "statistical inference",
+    "statistical power", "effect size", "sampling distribution",
+    "supervised learning", "unsupervised learning", "reinforcement learning",
+    "cross validation", "feature selection", "ensemble learning",
+    "random variable", "probability distribution", "expected value",
+    "conditional probability", "binomial distribution", "law large",
+    "joint probability", "probability density", "stochastic process",
+    "exponential distribution", "random walk", "geometric distribution",
+    "uniform distribution", "cluster analysis", "association rule",
+    "anomaly detection", "market basket", "text mining", "web mining",
+    "dimensionality reduction", "knowledge extraction", "pattern recognition",
+    "hierarchical clustering", "nearest neighbors", "nearest neighbor",
+    "isolation forest", "local outlier", "information retrieval",
+    "sentiment analysis", "recommender system", "collaborative filtering",
+    "sequential pattern", "backpropagation", "transfer learning",
+    "semi supervised", "type i", "type ii",
+}
+
+
+def _looks_like_technical_term(match_text: str) -> bool:
+    """True if a RE_NAME match is (very likely) course terminology rather
+    than a person's name."""
+    normalized = re.sub(r"\s+", " ", match_text.strip().lower())
+    return normalized in _TECHNICAL_BIGRAM_TERMS
 # Email pattern: user@domain.com
 RE_EMAIL = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
 # Phone pattern: supports various formats
@@ -157,9 +201,11 @@ class GovernanceAgent:
                 redactions.append(f"ID(s): {len(id_matches)}")
 
         if filters.get("name", True):
-            name_matches = RE_NAME.findall(text)
+            name_matches = [m for m in RE_NAME.findall(text) if not _looks_like_technical_term(m)]
             if name_matches:
-                text = RE_NAME.sub("[REDACTED_NAME]", text)
+                def _redact_if_not_technical(m: "re.Match") -> str:
+                    return "[REDACTED_NAME]" if not _looks_like_technical_term(m.group(0)) else m.group(0)
+                text = RE_NAME.sub(_redact_if_not_technical, text)
                 redactions.append(f"name(s): {len(name_matches)}")
 
         if redactions and text != original_text:

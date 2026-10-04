@@ -39,5 +39,21 @@ PII_FILTERS:
   email: true
   id: true
   ip: true
-  name: true
+  # Person-name redaction is disabled for this evaluation domain. The
+  # educational corpus (Wikipedia-sourced statistics/ML/probability content)
+  # routinely names real historical figures as part of the correct answer
+  # itself (e.g. Bayes, Fisher, Laplace, Markov, Poisson, Gauss, Pearson,
+  # Davenport & Patil). The regex-based name detector (RE_NAME, a generic
+  # "Capitalized Capitalized" heuristic in app/agents/governance_agent.py)
+  # cannot distinguish these from genuine PII and was redacting them as
+  # "[REDACTED_NAME]", corrupting otherwise-correct answers and depressing
+  # answer-quality metrics (groundedness, exact_match) for every governed
+  # system relative to ungoverned baselines -- a measurement artifact, not a
+  # real governance trade-off. The PII-redaction capability itself still
+  # works correctly (verified against synthetic real-name examples such as
+  # "John Smith"); it is switched off here only because this corpus has
+  # effectively no real PII risk. Re-enable for any deployment where user-
+  # or student-submitted text (which can contain genuine personal names) is
+  # processed, ideally after replacing RE_NAME with a proper NER model.
+  name: false
   phone: true

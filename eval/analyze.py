@@ -80,49 +80,149 @@ def plot_action_distribution(rows: List[Dict], out_path: Path) -> None:
     print(f"[analyze] Saved {out_path}")
 
 
-def write_trace_report(rows: List[Dict], out_path: Path, max_examples: int = 15) -> None:
-    """Qualitative report: inspect the transparency of policy-aware decisions."""
-    policy_rows = [r for r in rows if r.get("mode") == "policy_aware"]
+def write_trace_report(
+    rows: List[Dict],
+    out_path: Path,
+    max_examples: int = 15,
+    mode: str = "full_system",
+) -> None:
+    """Qualitative report: inspect the transparency of policy-aware decisions.
 
-    def section(title: str, subset: List[Dict]) -> List[str]:
-        lines = [f"## {title} ({len(subset)} cases)\n"]
-        for r in subset[:max_examples]:
-            gold = "answerable" if r.get("gold_answerable") else "unanswerable"
-            lines.append(f"- **Q:** {r.get('question')}")
-            lines.append(f"  - gold: `{gold}` | action: `{r.get('action')}`")
-            lines.append(f"  - reason: {r.get('reason')}")
-            lines.append(
-                f"  - retriever_conf: {r.get('retriever_confidence')} | "
-                f"reasoner_conf: {r.get('reasoner_confidence')} | "
-                f"model_is_answerable: {r.get('model_is_answerable')}"
+    ``mode`` selects which system's rows to inspect. It defaults to
+    "full_system" (the current name of the complete policy-aware system).
+    Older predictions files may instead use the legacy name "policy_aware";
+    if no rows match ``mode`` but legacy rows exist, fall back to those
+    rather than silently producing an empty report.
+    """
+    policy_rows = [r for r in rows if r.get("mode") == mode]
+
+    if not policy_rows:
+        legacy_rows = [
+            r for r in rows
+            if r.get("mode") == "policy_aware"
+        ]
+
+        if legacy_rows:
+            print(
+                f"[analyze] No rows found for mode='{mode}'; "
+                f"falling back to legacy mode='policy_aware' "
+                f"({len(legacy_rows)} rows)."
             )
+            policy_rows = legacy_rows
+
+        else:
+            available_modes = {
+                r.get("mode")
+                for r in rows
+            }
+
+            available = sorted(
+                mode_name
+                for mode_name in available_modes
+                if isinstance(mode_name, str)
+            )
+
+            print(
+                f"[analyze] WARNING: no rows found for mode='{mode}' "
+                f"or the legacy 'policy_aware'. "
+                f"Available modes: {available}. "
+                f"The trace report will be empty."
+            )
+
+    def section(
+        title: str,
+        subset: List[Dict],
+    ) -> List[str]:
+        lines = [f"## {title} ({len(subset)} cases)\n"]
+
+        for r in subset[:max_examples]:
+            gold = (
+                "answerable"
+                if r.get("gold_answerable")
+                else "unanswerable"
+            )
+
+            lines.append(
+                f"- **Q:** {r.get('question')}"
+            )
+            lines.append(
+                f"  - gold: `{gold}` | "
+                f"action: `{r.get('action')}`"
+            )
+            lines.append(
+                f"  - reason: {r.get('reason')}"
+            )
+            lines.append(
+                f"  - retriever_conf: "
+                f"{r.get('retriever_confidence')} | "
+                f"reasoner_conf: "
+                f"{r.get('reasoner_confidence')} | "
+                f"model_is_answerable: "
+                f"{r.get('model_is_answerable')}"
+            )
+
             if r.get("trace"):
-                lines.append(f"  - trace: `{json.dumps(r.get('trace'), ensure_ascii=False)}`")
+                lines.append(
+                    "  - trace: "
+                    f"`{json.dumps(r.get('trace'), ensure_ascii=False)}`"
+                )
+
             lines.append("")
+
         return lines
 
-    abstained = [r for r in policy_rows if r.get("action") == "ABSTAIN"]
-    clarified = [r for r in policy_rows if r.get("action") == "CLARIFY"]
-    # Correctly abstained on genuinely unanswerable questions.
-    correct_abstain = [r for r in abstained if not r.get("gold_answerable")]
-    # Wrongly refused answerable questions (transparency failures worth inspecting).
+    abstained = [
+        r for r in policy_rows
+        if r.get("action") == "ABSTAIN"
+    ]
+
+    clarified = [
+        r for r in policy_rows
+        if r.get("action") == "CLARIFY"
+    ]
+
+    correct_abstain = [
+        r for r in abstained
+        if not r.get("gold_answerable")
+    ]
+
     wrong_refuse = [
         r for r in policy_rows
-        if r.get("gold_answerable") and r.get("action") != "ANSWER"
+        if r.get("gold_answerable")
+        and r.get("action") != "ANSWER"
     ]
 
     lines = [
         "# Qualitative Trace Report\n",
-        "This report supports the qualitative evaluation described in the research: ",
-        "it inspects governance decisions and their stated reasons to assess the ",
-        "transparency of the policy-aware system and its compliance with the ",
+        "This report supports the qualitative evaluation described "
+        "in the research: ",
+        "it inspects governance decisions and their stated reasons "
+        "to assess the ",
+        "transparency of the policy-aware system and its compliance "
+        "with the ",
         "answerability policy.\n",
     ]
-    lines += section("Correctly abstained on unanswerable questions", correct_abstain)
-    lines += section("Requested clarification", clarified)
-    lines += section("Wrongly refused answerable questions (false rejections)", wrong_refuse)
 
-    out_path.write_text("\n".join(lines), encoding="utf-8")
+    lines += section(
+        "Correctly abstained on unanswerable questions",
+        correct_abstain,
+    )
+
+    lines += section(
+        "Requested clarification",
+        clarified,
+    )
+
+    lines += section(
+        "Wrongly refused answerable questions (false rejections)",
+        wrong_refuse,
+    )
+
+    out_path.write_text(
+        "\n".join(lines),
+        encoding="utf-8",
+    )
+
     print(f"[analyze] Saved {out_path}")
 
 
@@ -130,6 +230,11 @@ def main():
     parser = argparse.ArgumentParser(description="Analyze evaluation results.")
     parser.add_argument("--predictions", default="results/predictions.jsonl")
     parser.add_argument("--out-dir", default="results")
+    parser.add_argument(
+        "--mode",
+        default="full_system",
+        help="Which system's rows to inspect in the qualitative trace report.",
+    )
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -149,7 +254,7 @@ def main():
 
     plot_metrics_comparison(df, out_dir / "metrics_comparison.png")
     plot_action_distribution(rows, out_dir / "action_distribution.png")
-    write_trace_report(rows, out_dir / "trace_report.md")
+    write_trace_report(rows, out_dir / "trace_report.md", mode=args.mode)
 
     print("\n[analyze] Done.")
 

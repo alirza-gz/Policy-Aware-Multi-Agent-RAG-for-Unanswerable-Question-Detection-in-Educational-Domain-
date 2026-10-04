@@ -1,5 +1,5 @@
 baseline,accuracy,precision,recall,f1,roc_auc,pr_auc,hallucination_rate,unsupported_answer_rate,correct_abstention_rate,abstention_rate,abstention_precision,abstention_recall,clarification_rate,coverage,false_rejection_rate,false_acceptance_rate,answered_correct_rate,policy_compliance_rate,correct_answer_rate,correct_clarify_rate,correct_abstain_rate,clarification_quality
-llm_no_rag,70.87,,,,1.9,1.0,-1929.83,-1929.83,,,,,,-33.63,,51.69,91285.71,,-6.57,,,
-standard_rag,70.87,,,,0.0,0.0,5.18,5.18,,,,,,-33.63,,51.69,-8.97,50.67,-6.57,,,
-rag_threshold,60.15,-7.81,1056.38,673.83,0.0,0.0,4.45,4.45,1055.48,1153.73,-7.82,1055.48,,-31.8,,49.43,-8.97,44.8,-6.57,,958.46,
-agentic_rag,0.29,0.05,0.64,0.44,0.0,0.0,0.68,0.68,0.56,0.51,0.04,0.56,,-0.3,-0.0,0.68,-8.87,0.23,0.0,,0.7,
+llm_no_rag,28.37,92.19,51.69,66.24,0.95,0.6,-45.93,-45.93,51.65,33.6,92.18,51.65,0.03,-33.63,-6.57,51.69,64.4,100.0,-6.57,0.18,63.19,0.18
+standard_rag,28.37,92.19,51.69,66.24,0.0,0.0,2.64,2.64,51.65,33.6,92.18,51.65,0.03,-33.63,-6.57,51.69,-5.8,33.63,-6.57,0.18,63.19,0.18
+rag_threshold,25.69,-7.81,47.22,57.68,0.0,0.0,2.25,2.25,47.18,30.92,-7.82,47.18,0.03,-30.95,-6.57,47.22,-5.8,30.94,-6.57,0.18,57.22,0.18
+agentic_rag,0.2,0.05,0.33,0.29,0.0,0.0,0.33,0.33,0.29,0.17,0.04,0.29,0.03,-0.2,-0.0,0.33,-5.73,0.23,0.0,0.18,0.44,0.18

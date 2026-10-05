@@ -264,6 +264,8 @@ async def run(args) -> None:
         cfg["questions"] = args.questions
     if args.limit is not None:
         cfg["limit"] = args.limit
+    if args.seeds is not None:
+        cfg["seeds"] = args.seeds
 
     out_dir = Path(cfg.get("out_dir", "results"))
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -356,12 +358,41 @@ async def run(args) -> None:
         print(f"[run_experiments] Wrote {seed_path} ({len(seed_rows)} rows)")
         all_rows.extend(seed_rows)
 
+    # Combine from every predictions_seed*.jsonl file present in out_dir, not
+    # just the seeds processed in THIS invocation. This allows running each
+    # seed in a separate invocation (e.g. on a machine with limited
+    # continuous runtime) -- the combined file is rebuilt from whatever seed
+    # files exist on disk, so the last invocation naturally produces a
+    # complete predictions_all.jsonl once every seed has been run at least
+    # once, regardless of the order or whether they ran in the same process.
     pred_name = cfg.get("predictions_file", "predictions_all.jsonl")
     all_path = out_dir / pred_name
+    seed_files = sorted(out_dir.glob("predictions_seed*.jsonl"))
+    combined_rows: List[Dict] = []
+    for sf in seed_files:
+        with open(sf, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    combined_rows.append(json.loads(line))
     with open(all_path, "w", encoding="utf-8") as f:
-        for row in all_rows:
+        for row in combined_rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    print(f"[run_experiments] Wrote {all_path} ({len(all_rows)} rows)")
+    print(
+        f"[run_experiments] Wrote {all_path} ({len(combined_rows)} rows, "
+        f"combined from {len(seed_files)} seed file(s): "
+        f"{[sf.name for sf in seed_files]})"
+    )
+    found_seeds = sorted({r.get("seed", 0) for r in combined_rows})
+    expected_seeds = sorted(set(cfg.get("seeds") or [42]))
+    missing = sorted(set(expected_seeds) - set(found_seeds))
+    if missing:
+        print(
+            f"[run_experiments] NOTE: experiments.yml lists seeds {expected_seeds}, "
+            f"but only {found_seeds} were found on disk. predictions_all.jsonl is "
+            f"missing seed(s) {missing} -- run them before using this file for the "
+            f"final report."
+        )
 
 
 def main() -> None:
@@ -370,6 +401,18 @@ def main() -> None:
     parser.add_argument("--questions", default=None)
     parser.add_argument("--reasoning-mode", default=None, choices=["mock", "ollama"])
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument(
+        "--seeds",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Run only these seed(s) in this invocation, e.g. --seeds 42. "
+        "Overrides the 'seeds' list in experiments.yml. predictions_all.jsonl "
+        "is rebuilt from every predictions_seed*.jsonl file already present "
+        "in out_dir, so running one seed per invocation (e.g. across several "
+        "sessions) still produces a complete combined file once all seeds "
+        "have been run at least once.",
+    )
     args = parser.parse_args()
     asyncio.run(run(args))
 

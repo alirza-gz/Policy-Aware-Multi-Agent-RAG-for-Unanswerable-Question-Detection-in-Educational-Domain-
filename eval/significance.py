@@ -134,3 +134,97 @@ def binary_detection_correct(row: Dict) -> int:
     gold_unans = 0 if row.get("gold_answerable", True) else 1
     pred_unans = 0 if row.get("action") == "ANSWER" else 1
     return int(gold_unans == pred_unans)
+
+
+# ===========================================================================
+# Question-level (cluster-correct) inference -- added in the evaluation refactor
+# ===========================================================================
+# The original pipeline paired on (id, seed) and pooled seeds, giving n = seeds * N.
+# Seeds only re-order questions (the LLM seed was fixed at 42), so the same question
+# re-evaluated three times is NOT three independent observations; pooling inflates n
+# and understates p-values / CI widths. The functions below treat the QUESTION as
+# the unit of analysis.
+
+import math as _math
+from collections import defaultdict as _dd
+
+
+def per_question_correct(rows: List[Dict], label_fn: Callable[[Dict], int]) -> Dict[str, float]:
+    """question id -> mean correctness over seeds (in [0, 1])."""
+    acc: Dict[str, List[int]] = _dd(list)
+    for r in rows:
+        acc[str(r.get("id"))].append(int(label_fn(r)))
+    return {k: sum(v) / len(v) for k, v in acc.items()}
+
+
+def exact_mcnemar(b: int, c: int) -> float:
+    """Two-sided exact (binomial) McNemar p-value on discordant counts."""
+    from scipy.stats import binomtest
+    n = b + c
+    return 1.0 if n == 0 else float(binomtest(min(b, c), n, 0.5, alternative="two-sided").pvalue)
+
+
+def cohens_h(p1: float, p2: float) -> float:
+    return 2 * _math.asin(_math.sqrt(p1)) - 2 * _math.asin(_math.sqrt(p2))
+
+
+def practical_label(h: float) -> str:
+    a = abs(h)
+    return "negligible" if a < 0.2 else "small" if a < 0.5 else "medium" if a < 0.8 else "large"
+
+
+def compare_systems_by_question(rows_a: List[Dict], rows_b: List[Dict],
+                                label_fn: Callable[[Dict], int] = decision_correct,
+                                n_boot: int = 2000, seed: int = 42, alpha: float = 0.05) -> Dict:
+    """Paired comparison of two systems with the QUESTION as the unit.
+
+    * per-question correctness = mean over seeds; binarised by majority (>=0.5) for McNemar
+    * exact McNemar p on discordant questions
+    * effect: difference in accuracy (B - A), Cohen's h, odds ratio b/c
+    * 95% CI: paired percentile bootstrap resampling questions
+    """
+    pa, pb = per_question_correct(rows_a, label_fn), per_question_correct(rows_b, label_fn)
+    ids = sorted(set(pa) & set(pb))
+    if not ids:
+        return {"n_questions": 0, "p_value": float("nan")}
+    va, vb = np.array([pa[i] for i in ids]), np.array([pb[i] for i in ids])
+    ba, bb = va >= 0.5, vb >= 0.5
+    b_cnt, c_cnt = int((~ba & bb).sum()), int((ba & ~bb).sum())
+    p = exact_mcnemar(b_cnt, c_cnt)
+    diff = float(vb.mean() - va.mean())
+    h = cohens_h(float(vb.mean()), float(va.mean()))
+    rng = np.random.default_rng(seed)
+    d = vb - va
+    boots = np.array([d[rng.integers(0, len(d), len(d))].mean() for _ in range(n_boot)])
+    lo, hi = float(np.quantile(boots, alpha / 2)), float(np.quantile(boots, 1 - alpha / 2))
+    sig = p < alpha
+    prac = practical_label(h)
+    if sig and prac == "negligible":
+        note = "The difference is statistically significant, but its practical effect is limited."
+    elif sig:
+        note = f"Statistically significant with a {prac} practical effect."
+    else:
+        note = "Not statistically significant."
+    return {
+        "unit": "question", "n_questions": len(ids), "acc_a": round(float(va.mean()), 4),
+        "acc_b": round(float(vb.mean()), 4), "diff_b_minus_a": round(diff, 4),
+        "ci95_low": round(lo, 4), "ci95_high": round(hi, 4), "b_A_wrong_B_right": b_cnt,
+        "c_A_right_B_wrong": c_cnt, "odds_ratio": round(b_cnt / c_cnt, 4) if c_cnt else None,
+        "p_value": p, "test": "exact_mcnemar", "cohens_h": round(h, 4),
+        "practical_effect": prac, "statistically_significant": bool(sig), "interpretation": note,
+    }
+
+
+def question_level_mean_std_ci(rows: List[Dict], metric_fn: Callable[[Dict], float],
+                               n_boot: int = 2000, seed: int = 42) -> Dict:
+    """Mean, std (across questions), and bootstrap 95% CI resampling questions."""
+    pq = per_question_correct(rows, metric_fn)
+    arr = np.array(list(pq.values()), float)
+    if not len(arr):
+        return {"n_questions": 0}
+    rng = np.random.default_rng(seed)
+    means = np.array([arr[rng.integers(0, len(arr), len(arr))].mean() for _ in range(n_boot)])
+    return {"unit": "question", "n_questions": int(len(arr)), "mean": round(float(arr.mean()), 4),
+            "std": round(float(arr.std(ddof=1)), 4) if len(arr) > 1 else 0.0,
+            "ci95_low": round(float(np.quantile(means, 0.025)), 4),
+            "ci95_high": round(float(np.quantile(means, 0.975)), 4)}

@@ -169,6 +169,8 @@ async def collect_signals_for_profile(
                 "sparse": pipe.get("sparse", []),
                 "fused": pipe.get("fused", []),
                 "retrieved_ids": pipe.get("retrieved_ids", []),
+                "ranked_deep": pipe.get("ranked_deep", []),
+                "pre_rerank": pipe.get("pre_rerank", []),
                 "retrieval_mode": pipe.get("retrieval_mode", retrieval_mode),
                 "reranked": bool(pipe.get("reranked", False)),
                 "retriever_confidence": _retriever_confidence(pipe["passages"]),

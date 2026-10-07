@@ -1,0 +1,16 @@
+{
+  "predictions_sha256": "8d3f0312b4af2c824eb5a4b1bfd505fb0473e42ecd16e6ae012e54e02919d562",
+  "generated_files": [
+    "ablation_equivalence.json",
+    "calibration.json",
+    "calibration_artifacts.json",
+    "category_metrics.json",
+    "confidence_intervals.json",
+    "config.json",
+    "course_metrics.json",
+    "metrics.json",
+    "partial_answerable_eval.json",
+    "policy_instrumentation.json",
+    "statistical_tests.json"
+  ]
+}

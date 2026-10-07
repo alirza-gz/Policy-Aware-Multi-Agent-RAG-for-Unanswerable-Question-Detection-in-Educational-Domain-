@@ -6,6 +6,7 @@ retriever for reciprocal-rank fusion.
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Dict, List, Optional, Sequence
 
@@ -33,9 +34,11 @@ class BM25Index:
         self._n = len(self._docs_tokens)
 
     def _idf(self, term: str) -> float:
-        # Robertson–Walker IDF with +0.5 smoothing.
+        # Okapi/Lucene BM25 IDF: log(1 + (N - df + 0.5) / (df + 0.5)), always >= 0.
+        # FIX: the previous version returned the odds ratio WITHOUT the logarithm, which
+        # grows linearly in 1/df and let a single rare query term dominate the ranking.
         df = self._df.get(term, 0)
-        return max(0.0, ((self._n - df + 0.5) / (df + 0.5)))
+        return math.log(1.0 + (self._n - df + 0.5) / (df + 0.5))
 
     def score(self, query: str, doc_idx: int) -> float:
         q_terms = tokenize(query)

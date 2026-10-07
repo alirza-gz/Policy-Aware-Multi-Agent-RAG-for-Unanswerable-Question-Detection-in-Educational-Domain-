@@ -1,0 +1,87 @@
+{
+  "_meta": {
+    "predictions_sha256": "8d3f0312b4af2c824eb5a4b1bfd505fb0473e42ecd16e6ae012e54e02919d562",
+    "n_prediction_rows_total": 1400,
+    "n_prediction_rows_test_split": 868,
+    "split": "test"
+  },
+  "identical_pairs": [
+    {
+      "system_a": "agentic_rag",
+      "system_b": "no_multi_agent",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    },
+    {
+      "system_a": "full_system",
+      "system_b": "no_safety_rules",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    },
+    {
+      "system_a": "llm_no_rag",
+      "system_b": "no_governance",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    },
+    {
+      "system_a": "llm_no_rag",
+      "system_b": "rag_threshold",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    },
+    {
+      "system_a": "llm_no_rag",
+      "system_b": "standard_rag",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    },
+    {
+      "system_a": "no_governance",
+      "system_b": "rag_threshold",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    },
+    {
+      "system_a": "no_governance",
+      "system_b": "standard_rag",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    },
+    {
+      "system_a": "no_guard_rules",
+      "system_b": "no_policy_agent",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    },
+    {
+      "system_a": "no_guard_rules",
+      "system_b": "no_policy_rules",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    },
+    {
+      "system_a": "no_policy_agent",
+      "system_b": "no_policy_rules",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    },
+    {
+      "system_a": "rag_threshold",
+      "system_b": "standard_rag",
+      "action_agreement": 1.0,
+      "n": 62,
+      "note": "behaviourally identical on this run"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "n_questions_total": 2498,
+  "n_with_gold": 1750,
+  "relevance": "binary; gold = evidence_ids (source passage); see module docstring",
+  "configs": {
+    "bm25": {
+      "recall@1": 0.844,
+      "recall@5": 0.9451,
+      "recall@10": 0.9686,
+      "precision@5": 0.189,
+      "hit@5": 0.9451,
+      "mrr": 0.8899,
+      "ndcg@10": 0.9082,
+      "hit@1": 0.844
+    }
+  },
+  "corpus_size_passages": 1352,
+  "evidence_id_agreement": {
+    "stored_with_ids": 1750,
+    "agree_with_rebuilt_corpus": 1750
+  },
+  "scope_note": "BM25 only. Corpus = unique evidence passages of the dataset (held-out passages excluded), so this corpus is smaller and easier than a real course corpus."
+}

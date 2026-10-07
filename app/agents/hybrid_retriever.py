@@ -146,27 +146,40 @@ class HybridRetrieverAgent(RetrieverAgent):
             final = annotated
 
         reranked = False
+        pre_rerank = [dict(p) for p in final]
         if do_rerank and final and self.reranker is not None:
             # Preserve dense_score across rerank.
             dense_map = {str(p.get("id")): p.get("dense_score") for p in final}
-            final = self.reranker.rerank(query, final, top_k=top_k)
+            final = self.reranker.rerank(query, final, top_k=max(top_k, 10))
             for p in final:
                 ds = dense_map.get(str(p.get("id")))
                 if ds is not None:
                     p["dense_score"] = ds
             reranked = True
         else:
-            final = final[:top_k]
+            final = final[:max(top_k, 10)]
             for p in final:
                 p.setdefault("reranker", "skipped")
+        ranked_deep = [dict(p) for p in final]     # depth >= 10 for retrieval metrics
+        final = final[:top_k]                      # what the reasoner actually sees
 
+        # NOTE (eval fix): candidate lists are returned at FULL candidate depth so
+        # Recall@10 / nDCG@10 can be computed independently of the final top_k.
+        # Previously they were truncated to top_k, making Recall@10 undefinable.
         return {
             "passages": final,
-            "dense": dense[:top_k],
-            "sparse": sparse[:top_k],
-            "fused": (fused[:top_k] if fused else final[:top_k]),
+            "dense": dense,
+            "sparse": sparse,
+            "fused": (fused if fused else final),
+            "pre_rerank": pre_rerank,
+            "rerank_changed_top1": (bool(reranked and pre_rerank and final
+                                         and str(pre_rerank[0].get("id")) != str(final[0].get("id")))),
+            "rerank_changed_order": (bool(reranked and
+                                          [str(p.get("id")) for p in pre_rerank[:top_k]] !=
+                                          [str(p.get("id")) for p in final])),
             "retrieval_mode": mode,
             "reranked": reranked,
+            "ranked_deep": ranked_deep,
             "retrieved_ids": [str(p.get("id", "")) for p in final],
         }
 

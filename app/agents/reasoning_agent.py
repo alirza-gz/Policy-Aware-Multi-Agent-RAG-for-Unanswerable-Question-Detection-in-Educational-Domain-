@@ -54,6 +54,7 @@ class ReasoningAgent:
         self.ollama_url = ollama_url
         self.model = model
         self.mode = (mode or "ollama").lower()
+        self.seed = 42  # sampling seed sent to Ollama; eval pipeline sets it per run
         self.user_instructions = self._load_user_instructions()
 
         logger.info(
@@ -89,12 +90,19 @@ class ReasoningAgent:
             "   which part cannot be answered from the material.\n"
             "3) If the question itself is ambiguous or could mean several different things, "
             "   also set \"needs_clarification\": true.\n"
+            "4) Set \"answerability_label\" to exactly one of: fully_answerable, "
+            "partially_answerable, unanswerable, out_of_domain, false_premise "
+            "(false_premise = the question assumes something the passages contradict; "
+            "out_of_domain = unrelated to the course material).\n"
+            "5) List in \"missing_information\" what is absent from the passages (empty if nothing).\n"
             "{\n"
             '  "answer": string,\n'
             '  "is_answerable": boolean,\n'
             '  "answerability_confidence": float (0..1, how sure you are the passages support an answer),\n'
             '  "needs_clarification": boolean,\n'
             '  "clarification_question": string (empty if none),\n'
+            '  "answerability_label": string,\n'
+            '  "missing_information": string (empty if none),\n'
             '  "trace": [{"index": int, "note": string}],\n'
             '  "confidence": float (0..1, confidence in the answer itself)\n'
             "}\n"
@@ -109,7 +117,7 @@ class ReasoningAgent:
             "model": self.model,
             "prompt": prompt,
             "stream": True,
-            "options": {"temperature": 0.0, "seed": 42, "top_p": 1.0, "top_k": 1},
+            "options": {"temperature": 0.0, "seed": self.seed, "top_p": 1.0, "top_k": 1},
         }
 
         last_exception = None
@@ -194,6 +202,12 @@ class ReasoningAgent:
         if needs_clarification and not clarification_question:
             clarification_question = "Could you please clarify or add more detail to your question?"
 
+        label = str(parsed.get("answerability_label", "") or "").strip().lower()
+        if label not in ("fully_answerable", "partially_answerable", "unanswerable",
+                         "out_of_domain", "false_premise"):
+            label = ""
+        missing_information = str(parsed.get("missing_information", "") or "").strip()
+
         trace = parsed.get("trace", [])
         if not isinstance(trace, list):
             trace = []
@@ -207,6 +221,8 @@ class ReasoningAgent:
             "answerability_confidence": answerability_confidence,
             "needs_clarification": needs_clarification,
             "clarification_question": clarification_question,
+            "answerability_label": label,
+            "missing_information": missing_information,
             "trace": trace,
             "confidence": confidence,
         }

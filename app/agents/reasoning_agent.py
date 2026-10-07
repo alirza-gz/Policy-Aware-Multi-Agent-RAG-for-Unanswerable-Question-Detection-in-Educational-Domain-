@@ -194,7 +194,7 @@ class ReasoningAgent:
             answerability_confidence = float(answerability_confidence)
         except (TypeError, ValueError):
             # Fall back to the answer confidence when the model omitted the field.
-            answerability_confidence = confidence if is_answerable else 1.0 - confidence
+            answerability_confidence = confidence if is_answerable else 0.0
         answerability_confidence = max(0.0, min(1.0, answerability_confidence))
 
         needs_clarification = bool(parsed.get("needs_clarification", False))
@@ -299,7 +299,7 @@ class ReasoningAgent:
                 {
                     "answer": UNANSWERABLE_TOKEN,
                     "is_answerable": False,
-                    "answerability_confidence": round(1.0 - min(coverage, 1.0), 3),
+                    "answerability_confidence": round(min(coverage, 1.0), 3),
                     "needs_clarification": needs_clarification,
                     "clarification_question": (
                         "Could you please clarify what specifically you are asking about?"

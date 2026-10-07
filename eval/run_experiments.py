@@ -321,7 +321,7 @@ async def run(args) -> None:
     for seed in seeds:
         random.seed(seed)
         np.random.seed(seed)
-        # Shuffle a copy of questions; same seed => same order.
+        reasoner.seed = seed
         qs = list(questions)
         random.shuffle(qs)
 
